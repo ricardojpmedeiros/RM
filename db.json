@@ -1,0 +1,597 @@
+{
+  "trips": [
+    {
+      "id": "trip-1783432501232",
+      "name": "Viagem Teste Local",
+      "destination": "Lisboa",
+      "startDate": "2026-07-20",
+      "endDate": "2026-07-22",
+      "description": "",
+      "status": "active",
+      "homeAddress": "",
+      "accommodationAddress": "",
+      "accommodationMapLink": "",
+      "accommodationName": "",
+      "accommodationContact": "",
+      "vehicle": null,
+      "accommodation": null,
+      "flights": [],
+      "documents": [],
+      "itinerary": {
+        "2026-07-20": [],
+        "2026-07-21": [],
+        "2026-07-22": []
+      },
+      "expenses": [],
+      "participants": [
+        {
+          "id": "user-ricardo",
+          "name": "Ricardo Medeiros",
+          "email": "ricardojpmedeiros@gmail.com",
+          "role": "Planeador"
+        }
+      ]
+    },
+    {
+      "id": "trip-1783430348667",
+      "name": "Teste de Viagem",
+      "destination": "Porto",
+      "startDate": "2026-07-10",
+      "endDate": "2026-07-13",
+      "description": "",
+      "status": "active",
+      "homeAddress": "Av. Almirante Reis, Lisboa",
+      "accommodationAddress": "",
+      "accommodationMapLink": "",
+      "accommodationName": "",
+      "accommodationContact": "",
+      "vehicle": null,
+      "accommodation": null,
+      "flights": [],
+      "documents": [],
+      "itinerary": {
+        "2026-07-10": [],
+        "2026-07-11": [],
+        "2026-07-12": [],
+        "2026-07-13": []
+      },
+      "expenses": [],
+      "participants": [
+        {
+          "id": "user-ricardo",
+          "name": "Ricardo Medeiros",
+          "email": "ricardojpmedeiros@gmail.com",
+          "role": "Planeador"
+        }
+      ]
+    },
+    {
+      "id": "trip-1783429800344",
+      "name": "Minha Nova Viagem",
+      "destination": "Porto",
+      "startDate": "2026-07-10",
+      "endDate": "2026-07-13",
+      "description": "",
+      "status": "active",
+      "homeAddress": "Av. Almirante Reis, Lisboa",
+      "accommodationAddress": "",
+      "accommodationMapLink": "",
+      "accommodationName": "",
+      "accommodationContact": "",
+      "vehicle": null,
+      "accommodation": null,
+      "flights": [],
+      "documents": [],
+      "itinerary": {
+        "2026-07-10": [],
+        "2026-07-11": [],
+        "2026-07-12": [],
+        "2026-07-13": []
+      },
+      "expenses": [],
+      "participants": [
+        {
+          "id": "user-ricardo",
+          "name": "Ricardo Medeiros",
+          "email": "ricardojpmedeiros@gmail.com",
+          "role": "Planeador"
+        }
+      ]
+    },
+    {
+      "id": "trip-1783428653094",
+      "name": "Trip Test",
+      "destination": "Lisbon",
+      "startDate": "2026-07-10",
+      "endDate": "2026-07-13",
+      "description": "Test trip creation",
+      "status": "active",
+      "homeAddress": "",
+      "accommodationAddress": "",
+      "accommodationMapLink": "",
+      "accommodationName": "",
+      "accommodationContact": "",
+      "vehicle": null,
+      "accommodation": null,
+      "flights": [],
+      "documents": [],
+      "itinerary": {
+        "2026-07-10": [],
+        "2026-07-11": [],
+        "2026-07-12": [],
+        "2026-07-13": []
+      },
+      "expenses": [],
+      "participants": [
+        {
+          "id": "user-ricardo",
+          "name": "Ricardo Medeiros",
+          "email": "ricardojpmedeiros@gmail.com",
+          "role": "Planeador"
+        }
+      ]
+    },
+    {
+      "id": "trip-costa-alentejana",
+      "name": "Road Trip Costa Alentejana 🌊",
+      "destination": "Lisboa → Sines → Sagres",
+      "startDate": "2026-07-10",
+      "endDate": "2026-07-13",
+      "description": "Uma viagem inesquecível de carro elétrico ao longo das falésias selvagens, praias deslumbrantes e vilas costeiras do Alentejo e Algarve ocidental.",
+      "status": "active",
+      "homeAddress": "Av. Almirante Reis, Lisboa",
+      "accommodationAddress": "Herdade do Touril, Zambujeira do Mar",
+      "accommodationMapLink": "https://maps.app.goo.gl/tB1RGr6Ld8gHwW4z5",
+      "accommodationName": "Herdade do Touril",
+      "accommodationContact": "+351 283 960 000",
+      "vehicle": {
+        "id": "ev-tesla",
+        "name": "Tesla Model Y RWD",
+        "type": "electric",
+        "autonomyRange": 450,
+        "limitThreshold": 30,
+        "currentAutonomy": 320,
+        "batteryPercent": 75
+      },
+      "accommodation": {
+        "name": "Eco-Resort Herdade do Touril",
+        "address": "Zambujeira do Mar, Odemira",
+        "checkIn": "2026-07-10",
+        "checkOut": "2026-07-13",
+        "price": 360
+      },
+      "flights": [],
+      "documents": [
+        {
+          "id": "doc-touril-pdf",
+          "name": "Confirmacao_Herdade_Touril.pdf",
+          "type": "application/pdf",
+          "dateUploaded": "2026-07-04",
+          "size": "420 KB",
+          "allowedForConsultor": true
+        },
+        {
+          "id": "doc-aluguer-fatura",
+          "name": "Fatura_Aluguer_Carro_Tesla.pdf",
+          "type": "application/pdf",
+          "dateUploaded": "2026-07-05",
+          "size": "1.2 MB",
+          "allowedForConsultor": false
+        }
+      ],
+      "itinerary": {
+        "2026-07-10": [
+          {
+            "id": "ev-1",
+            "timeStart": "09:00",
+            "timeEnd": "10:30",
+            "name": "Partida de Lisboa (Ponte 25 de Abril)",
+            "description": "Saída de Lisboa rumo a Sines. Início da grande road trip pela EN120 e Rota Vicentina.",
+            "category": "Atividade livre",
+            "address": "Lisboa, Portugal",
+            "coordinates": {
+              "lat": 38.7223,
+              "lng": -9.1393
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Lisboa",
+            "wazeLink": "https://waze.com/ul?q=Lisboa",
+            "image": "https://images.unsplash.com/photo-1509840841025-9088ba78a826?auto=format&fit=crop&w=800&q=80",
+            "notes": "Verificar se os cabos de carregamento estão no porta-bagagens."
+          },
+          {
+            "id": "ev-2",
+            "timeStart": "10:45",
+            "timeEnd": "12:30",
+            "name": "Almoço em Porto Covo e Passeio",
+            "description": "Parada na charmosa vila de Porto Covo. Passeio pelas ruas de casinhas brancas e azuis e descida à Praia dos Coxos.",
+            "category": "Restaurante",
+            "address": "Porto Covo, Sines",
+            "coordinates": {
+              "lat": 37.8512,
+              "lng": -8.7909
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Porto+Covo",
+            "wazeLink": "https://waze.com/ul?q=Porto+Covo",
+            "image": "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=800&q=80",
+            "notes": "Procurar restaurante 'Zé Inácio' ou 'A Tasca' para peixe grelhado fresco.",
+            "distanceFromPrev": "160 km",
+            "timeFromPrev": "1h 45m"
+          },
+          {
+            "id": "ev-3",
+            "timeStart": "14:00",
+            "timeEnd": "16:30",
+            "name": "Praia de Odeceixe",
+            "description": "Uma espetacular praia onde a ribeira de Seixe se encontra com o oceano. Ótima para banhos de mar e rio.",
+            "category": "Praia",
+            "address": "Praia de Odeceixe, Aljezur",
+            "coordinates": {
+              "lat": 37.4429,
+              "lng": -8.7983
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Praia+de+Odeceixe",
+            "wazeLink": "https://waze.com/ul?q=Praia+de+Odeceixe",
+            "image": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80",
+            "notes": "Subir ao miradouro para tirar fotos incríveis.",
+            "distanceFromPrev": "52 km",
+            "timeFromPrev": "45m"
+          },
+          {
+            "id": "ev-4",
+            "timeStart": "18:00",
+            "timeEnd": "19:30",
+            "name": "Check-in na Herdade do Touril",
+            "description": "Instalação no alojamento sustentável perto da Zambujeira do Mar.",
+            "category": "Hotel",
+            "address": "Herdade do Touril, Zambujeira do Mar",
+            "coordinates": {
+              "lat": 37.5342,
+              "lng": -8.7753
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Herdade+do+Touril",
+            "wazeLink": "https://waze.com/ul?q=Herdade+do+Touril",
+            "image": "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80",
+            "notes": "O hotel dispõe de carregador lento para carros elétricos (Menezes AC 7.4 kW). Excelente para carregar durante a noite!",
+            "distanceFromPrev": "21 km",
+            "timeFromPrev": "20m"
+          }
+        ],
+        "2026-07-11": [
+          {
+            "id": "ev-5",
+            "timeStart": "10:00",
+            "timeEnd": "13:00",
+            "name": "Trilho dos Pescadores (Cabo Sardão)",
+            "description": "Pequena caminhada ao longo das arribas do Cabo Sardão para ver os ninhos de cegonhas brancas nas falésias.",
+            "category": "Passeio",
+            "address": "Cabo Sardão, Odemira",
+            "coordinates": {
+              "lat": 37.5985,
+              "lng": -8.8149
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Cabo+Sardao",
+            "wazeLink": "https://waze.com/ul?q=Cabo+Sardao",
+            "image": "https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?auto=format&fit=crop&w=800&q=80",
+            "notes": "Levar calçado confortável, chapéu e protetor solar."
+          },
+          {
+            "id": "ev-6",
+            "timeStart": "13:30",
+            "timeEnd": "15:00",
+            "name": "Almoço na Zambujeira do Mar",
+            "description": "Almoço no centro da vila com vista magnífica sobre a baía.",
+            "category": "Restaurante",
+            "address": "Zambujeira do Mar, Odemira",
+            "coordinates": {
+              "lat": 37.5231,
+              "lng": -8.7853
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Zambujeira+do+Mar",
+            "wazeLink": "https://waze.com/ul?q=Zambujeira+do+Mar",
+            "image": "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=800&q=80",
+            "notes": "Restaurante 'Costa Alentejana'. Pedir arroz de marisco.",
+            "distanceFromPrev": "11 km",
+            "timeFromPrev": "12m"
+          },
+          {
+            "id": "ev-7",
+            "timeStart": "15:30",
+            "timeEnd": "18:30",
+            "name": "Praia do Carvalhal",
+            "description": "Uma enseada protegida com excelente areal e águas límpidas.",
+            "category": "Praia",
+            "address": "Praia do Carvalhal, Brejão",
+            "coordinates": {
+              "lat": 37.5023,
+              "lng": -8.7915
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Praia+do+Carvalhal",
+            "wazeLink": "https://waze.com/ul?q=Praia+do+Carvalhal",
+            "image": "https://images.unsplash.com/photo-1519046904884-53103b34b206?auto=format&fit=crop&w=800&q=80",
+            "notes": "Ideal para relaxar a tarde inteira.",
+            "distanceFromPrev": "5 km",
+            "timeFromPrev": "8m"
+          }
+        ],
+        "2026-07-12": [
+          {
+            "id": "ev-8",
+            "timeStart": "09:30",
+            "timeEnd": "11:00",
+            "name": "Deslocação para o Algarve (Aljezur)",
+            "description": "Viagem em direção ao barlavento algarvio pela costa selvagem de Aljezur.",
+            "category": "Viagem / Na estrada",
+            "address": "Aljezur, Algarve",
+            "coordinates": {
+              "lat": 37.3193,
+              "lng": -8.8033
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Aljezur",
+            "wazeLink": "https://waze.com/ul?q=Aljezur",
+            "image": "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80",
+            "notes": "Visitar o Castelo de Aljezur medieval."
+          },
+          {
+            "id": "ev-9",
+            "timeStart": "11:30",
+            "timeEnd": "14:30",
+            "name": "Praia da Arrifana",
+            "description": "Uma mítica praia em forma de concha abrigada de ventos, muito popular para surf.",
+            "category": "Praia",
+            "address": "Arrifana, Aljezur",
+            "coordinates": {
+              "lat": 37.2917,
+              "lng": -8.8681
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Praia+da+Arrifana",
+            "wazeLink": "https://waze.com/ul?q=Praia+da+Arrifana",
+            "image": "https://images.unsplash.com/photo-1471922639536-e67b96715791?auto=format&fit=crop&w=800&q=80",
+            "notes": "Almoço rápido no restaurante sobre a Arrifana.",
+            "distanceFromPrev": "12 km",
+            "timeFromPrev": "15m"
+          },
+          {
+            "id": "ev-10",
+            "timeStart": "15:30",
+            "timeEnd": "19:00",
+            "name": "Cabo de São Vicente (Fim do Mundo)",
+            "description": "Visitar o extremo sudoeste da Europa Continental. Sentir a força do vento e o pôr do sol glorioso sobre os penhascos.",
+            "category": "Miradouro",
+            "address": "Cabo de Sao Vicente, Sagres",
+            "coordinates": {
+              "lat": 37.0224,
+              "lng": -8.9964
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Cabo+de+Sao+Vicente",
+            "wazeLink": "https://waze.com/ul?q=Cabo+de+Sao+Vicente",
+            "image": "https://images.unsplash.com/photo-1544085311-11a028465b03?auto=format&fit=crop&w=800&q=80",
+            "notes": "Levar casaco quente mesmo no verão! O vento é extremamente forte.",
+            "distanceFromPrev": "45 km",
+            "timeFromPrev": "40m"
+          }
+        ],
+        "2026-07-13": [
+          {
+            "id": "ev-11",
+            "timeStart": "10:00",
+            "timeEnd": "12:30",
+            "name": "Fortaleza de Sagres",
+            "description": "Explorar a monumental muralha de Sagres e a sua icónica rosa-dos-ventos de pedra no chão de 43 metros.",
+            "category": "Museu",
+            "address": "Fortaleza de Sagres, Sagres",
+            "coordinates": {
+              "lat": 36.9972,
+              "lng": -8.9481
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Fortaleza+de+Sagres",
+            "wazeLink": "https://waze.com/ul?q=Fortaleza+de+Sagres",
+            "image": "https://images.unsplash.com/photo-1564507592333-c60657eea523?auto=format&fit=crop&w=800&q=80",
+            "notes": "Entrada custa 3€ por pessoa."
+          },
+          {
+            "id": "ev-12",
+            "timeStart": "13:00",
+            "timeEnd": "15:00",
+            "name": "Almoço de Despedida em Sagres",
+            "description": "Desfrutar dos sabores locais antes de iniciar o regresso para Lisboa.",
+            "category": "Restaurante",
+            "address": "Sagres, Portugal",
+            "coordinates": {
+              "lat": 37.0084,
+              "lng": -8.9392
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Sagres",
+            "wazeLink": "https://waze.com/ul?q=Sagres",
+            "image": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
+            "notes": "Restaurante 'A Casinha'. Peixe fresco incomparável.",
+            "distanceFromPrev": "2 km",
+            "timeFromPrev": "4m"
+          },
+          {
+            "id": "ev-13",
+            "timeStart": "15:30",
+            "timeEnd": "19:00",
+            "name": "Viagem de Regresso a Lisboa",
+            "description": "Fim da road trip, subida pela autoestrada A2 em direção ao norte.",
+            "category": "Viagem / Na estrada",
+            "address": "Lisboa, Portugal",
+            "coordinates": {
+              "lat": 38.7223,
+              "lng": -9.1393
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Lisboa",
+            "wazeLink": "https://waze.com/ul?q=Lisboa",
+            "image": "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80",
+            "notes": "Fazer uma paragem técnica para carregar se necessário (ex: postos rápidos em Alcácer do Sal).",
+            "distanceFromPrev": "320 km",
+            "timeFromPrev": "3h 10m"
+          }
+        ]
+      },
+      "expenses": [
+        {
+          "id": "exp-hotel-1",
+          "category": "Alojamento",
+          "description": "Eco-Resort Herdade do Touril (3 noites)",
+          "amount": 360,
+          "date": "2026-07-10",
+          "isPlanned": true,
+          "supplier": "Herdade do Touril"
+        },
+        {
+          "id": "exp-tesla-aluguer",
+          "category": "Rent-a-Car",
+          "description": "Aluguer Tesla Model Y (4 dias)",
+          "amount": 240,
+          "date": "2026-07-10",
+          "isPlanned": true,
+          "supplier": "Hertz EV"
+        },
+        {
+          "id": "exp-almoco-1",
+          "category": "Restaurantes",
+          "description": "Almoço Porto Covo - Restaurante Zé Inácio",
+          "amount": 42.5,
+          "date": "2026-07-10",
+          "isPlanned": false,
+          "supplier": "Zé Inácio Porto Covo"
+        },
+        {
+          "id": "exp-carregamento-fast",
+          "category": "Carregamentos",
+          "description": "Carregamento Rápido PCN Sines (35 kWh)",
+          "amount": 14.8,
+          "date": "2026-07-10",
+          "isPlanned": false,
+          "supplier": "Mobi.E Sines"
+        },
+        {
+          "id": "exp-portagem-a2",
+          "category": "Portagens",
+          "description": "Portagem Lisboa → Sines",
+          "amount": 12.4,
+          "date": "2026-07-10",
+          "isPlanned": true
+        }
+      ],
+      "participants": [
+        {
+          "id": "user-ricardo",
+          "name": "Ricardo Medeiros",
+          "email": "ricardojpmedeiros@gmail.com",
+          "role": "Planeador"
+        },
+        {
+          "id": "user-ana",
+          "name": "Ana Silva",
+          "email": "ana.silva@example.com",
+          "role": "Planeador"
+        }
+      ]
+    },
+    {
+      "id": "trip-aldeias-xisto",
+      "name": "Rota das Aldeias de Xisto 🌲",
+      "destination": "Coimbra → Lousã → Piódão",
+      "startDate": "2026-05-15",
+      "endDate": "2026-05-18",
+      "description": "Uma imersão na cultura e natureza serrana do centro de Portugal, visitando as acolhedoras Aldeias de Xisto aninhadas nas montanhas.",
+      "status": "archived",
+      "vehicle": {
+        "id": "car-diesel",
+        "name": "Volvo XC60 Diesel",
+        "type": "diesel",
+        "autonomyRange": 900,
+        "limitThreshold": 30,
+        "currentAutonomy": 850,
+        "fuelPercent": 95
+      },
+      "accommodation": {
+        "name": "Casa de Campo Talasnal",
+        "address": "Talasnal, Serra da Lousã",
+        "checkIn": "2026-05-15",
+        "checkOut": "2026-05-18",
+        "price": 280
+      },
+      "flights": [],
+      "documents": [],
+      "itinerary": {
+        "2026-05-15": [
+          {
+            "id": "x-1",
+            "timeStart": "10:00",
+            "timeEnd": "11:30",
+            "name": "Partida de Coimbra",
+            "description": "Encontro do grupo e início da subida para a Serra da Lousã.",
+            "category": "Atividade livre",
+            "address": "Coimbra, Portugal",
+            "coordinates": {
+              "lat": 40.2033,
+              "lng": -8.4103
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Coimbra",
+            "wazeLink": "https://waze.com/ul?q=Coimbra",
+            "image": "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=800&q=80",
+            "notes": "Atestar o carro antes de subir a montanha."
+          },
+          {
+            "id": "x-2",
+            "timeStart": "12:00",
+            "timeEnd": "14:30",
+            "name": "Almoço e Chegada ao Talasnal",
+            "description": "Instalação na Aldeia de Xisto da Lousã e almoço tradicional no restaurante Ti Lena.",
+            "category": "Hotel",
+            "address": "Talasnal, Lousã",
+            "coordinates": {
+              "lat": 40.1032,
+              "lng": -8.2142
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Talasnal",
+            "wazeLink": "https://waze.com/ul?q=Talasnal",
+            "image": "https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?auto=format&fit=crop&w=800&q=80",
+            "notes": "Comer a famosa chanfana assada no forno de lenha.",
+            "distanceFromPrev": "35 km",
+            "timeFromPrev": "40m"
+          }
+        ]
+      },
+      "expenses": [
+        {
+          "id": "exp-xisto-hotel",
+          "category": "Alojamento",
+          "description": "Estadia Casa Talasnal",
+          "amount": 280,
+          "date": "2026-05-15",
+          "isPlanned": false,
+          "supplier": "Xisto Houses"
+        },
+        {
+          "id": "exp-xisto-combustivel",
+          "category": "Combustível",
+          "description": "Abastecimento Repsol Coimbra (45 L)",
+          "amount": 78.5,
+          "date": "2026-05-15",
+          "isPlanned": false,
+          "supplier": "Repsol Coimbra"
+        },
+        {
+          "id": "exp-xisto-jantar",
+          "category": "Restaurantes",
+          "description": "Jantar Ti Lena Lousã",
+          "amount": 65,
+          "date": "2026-05-15",
+          "isPlanned": false,
+          "supplier": "Restaurante Ti Lena"
+        }
+      ],
+      "participants": [
+        {
+          "id": "user-ricardo",
+          "name": "Ricardo Medeiros",
+          "email": "ricardojpmedeiros@gmail.com",
+          "role": "Planeador"
+        }
+      ]
+    }
+  ]
+}
