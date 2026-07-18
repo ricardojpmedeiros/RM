@@ -1290,6 +1290,74 @@ export default function TripDetails({
               </div>
             ) : null}
 
+            {/* Passageiros / Grupo Section */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3 shadow-sm mt-3" id="trip-passengers-sidebar-card">
+              <h5 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5 text-indigo-500" />
+                Participantes / Passageiros
+              </h5>
+              
+              <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                <div className="bg-slate-50 p-1.5 rounded-xl border border-gray-100">
+                  <div className="text-gray-400 text-[9px] font-bold uppercase">Adultos</div>
+                  {isPlanner ? (
+                    <input
+                      type="number"
+                      min={1}
+                      value={trip.numAdults || 2}
+                      onChange={(e) => {
+                        onUpdateTrip({
+                          ...trip,
+                          numAdults: Math.max(1, Number(e.target.value))
+                        });
+                      }}
+                      className="w-full text-center font-bold text-gray-800 bg-white border border-gray-200 rounded-lg mt-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  ) : (
+                    <div className="font-extrabold text-base text-gray-800 mt-1">{trip.numAdults || 2}</div>
+                  )}
+                </div>
+                <div className="bg-slate-50 p-1.5 rounded-xl border border-gray-100">
+                  <div className="text-gray-400 text-[9px] font-bold uppercase">Crianças</div>
+                  {isPlanner ? (
+                    <input
+                      type="number"
+                      min={0}
+                      value={trip.numChildren || 0}
+                      onChange={(e) => {
+                        onUpdateTrip({
+                          ...trip,
+                          numChildren: Math.max(0, Number(e.target.value))
+                        });
+                      }}
+                      className="w-full text-center font-bold text-gray-800 bg-white border border-gray-200 rounded-lg mt-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  ) : (
+                    <div className="font-extrabold text-base text-gray-800 mt-1">{trip.numChildren || 0}</div>
+                  )}
+                </div>
+                <div className="bg-slate-50 p-1.5 rounded-xl border border-gray-100">
+                  <div className="text-gray-400 text-[9px] font-bold uppercase">Bebés</div>
+                  {isPlanner ? (
+                    <input
+                      type="number"
+                      min={0}
+                      value={trip.numBabies || 0}
+                      onChange={(e) => {
+                        onUpdateTrip({
+                          ...trip,
+                          numBabies: Math.max(0, Number(e.target.value))
+                        });
+                      }}
+                      className="w-full text-center font-bold text-gray-800 bg-white border border-gray-200 rounded-lg mt-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  ) : (
+                    <div className="font-extrabold text-base text-gray-800 mt-1">{trip.numBabies || 0}</div>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* Morada de Casa (Origem/Fim) Section */}
             <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3 shadow-sm mt-3" id="trip-home-sidebar-card">
               <h5 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">

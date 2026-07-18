@@ -85,6 +85,9 @@ export default function Dashboard({
   const [accommodationMapLink, setAccommodationMapLink] = useState("");
   const [accommodationName, setAccommodationName] = useState("");
   const [accommodationContact, setAccommodationContact] = useState("");
+  const [numAdults, setNumAdults] = useState<number>(2);
+  const [numChildren, setNumChildren] = useState<number>(0);
+  const [numBabies, setNumBabies] = useState<number>(0);
   const [showAccommodationMapPicker, setShowAccommodationMapPicker] = useState(false);
   const [showHomeMapPicker, setShowHomeMapPicker] = useState(false);
 
@@ -118,6 +121,9 @@ export default function Dashboard({
       accommodationMapLink,
       accommodationName,
       accommodationContact,
+      numAdults,
+      numChildren,
+      numBabies,
       vehicle: hasVehicle ? {
         id: "veh-" + Date.now(),
         name: vehicleName,
@@ -139,6 +145,9 @@ export default function Dashboard({
     setAccommodationMapLink("");
     setAccommodationName("");
     setAccommodationContact("");
+    setNumAdults(2);
+    setNumChildren(0);
+    setNumBabies(0);
     setVehicleName("Tesla Model 3");
     setVehicleRange(400);
     setSelectedBrand("");
@@ -461,6 +470,50 @@ export default function Dashboard({
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base md:text-sm"
                 />
+              </div>
+
+              {/* Quantidade de Pessoas (Adultos, Crianças, Bebés) */}
+              <div className="bg-indigo-50/30 p-4 rounded-xl border border-indigo-100/50">
+                <h5 className="text-xs font-bold text-indigo-900 uppercase mb-3 flex items-center gap-1.5">
+                  <Users className="w-4 h-4 text-indigo-600" />
+                  Número de Passageiros / Grupo
+                </h5>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-gray-600 mb-1">Adultos *</label>
+                    <input
+                      type="number"
+                      min={1}
+                      required
+                      value={numAdults}
+                      onChange={(e) => setNumAdults(Math.max(1, Number(e.target.value)))}
+                      className="w-full px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-bold text-gray-800"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-gray-600 mb-1">Crianças</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={numChildren}
+                      onChange={(e) => setNumChildren(Math.max(0, Number(e.target.value)))}
+                      className="w-full px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-bold text-gray-800"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-gray-600 mb-1">Bebés</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={numBabies}
+                      onChange={(e) => setNumBabies(Math.max(0, Number(e.target.value)))}
+                      className="w-full px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-bold text-gray-800"
+                    />
+                  </div>
+                </div>
+                <p className="text-[10px] text-indigo-800/85 mt-2 leading-tight italic">
+                  * Indique a quantidade total de pessoas para o planeamento ideal de hotéis, voos, capacidade de viatura e despesas.
+                </p>
               </div>
 
               {/* Vehicle parameters associated directly at creation (Optional toggle) */}

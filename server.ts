@@ -101,6 +101,9 @@ interface Trip {
   accommodationMapLink?: string;
   accommodationName?: string;
   accommodationContact?: string;
+  numAdults?: number;
+  numChildren?: number;
+  numBabies?: number;
 }
 
 interface DatabaseSchema {
@@ -613,6 +616,9 @@ app.post("/api/trips", (req, res) => {
       accommodationMapLink: newTripData.accommodationMapLink || "",
       accommodationName: newTripData.accommodationName || "",
       accommodationContact: newTripData.accommodationContact || "",
+      numAdults: newTripData.numAdults || 2,
+      numChildren: newTripData.numChildren || 0,
+      numBabies: newTripData.numBabies || 0,
       vehicle: newTripData.vehicle || null,
       accommodation: newTripData.accommodation || null,
       flights: newTripData.flights || [],

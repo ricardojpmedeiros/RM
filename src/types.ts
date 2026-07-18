@@ -102,6 +102,9 @@ export interface Trip {
   accommodationMapLink?: string;
   accommodationName?: string;
   accommodationContact?: string;
+  numAdults?: number;
+  numChildren?: number;
+  numBabies?: number;
 }
 
 export interface SmartRecommendation {

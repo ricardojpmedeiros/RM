@@ -57,7 +57,7 @@ export default function App() {
   }, []);
 
   // Helper to load user profile and trips from Supabase
-  const loadUserAndTrips = async (authUser: any, syncSelectedId?: string) => {
+  const loadUserAndTrips = async (authUser: any, syncSelectedId?: string | null) => {
     setLoading(true);
     try {
       // Fetch or ensure profile exists
@@ -93,7 +93,7 @@ export default function App() {
       setTrips(fetched);
 
       // Synchronize currently selected trip if active
-      const targetId = syncSelectedId || selectedTrip?.id;
+      const targetId = syncSelectedId !== undefined ? syncSelectedId : selectedTrip?.id;
       if (targetId) {
         const fresh = fetched.find((t) => t.id === targetId);
         if (fresh) {
@@ -118,7 +118,7 @@ export default function App() {
   const fetchTrips = async (syncSelected = true) => {
     const user = await authService.getCurrentUser();
     if (user) {
-      await loadUserAndTrips(user, syncSelected ? selectedTrip?.id : undefined);
+      await loadUserAndTrips(user, syncSelected ? selectedTrip?.id : null);
     }
   };
 

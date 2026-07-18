@@ -42,7 +42,10 @@ CREATE TABLE public.trips (
     accommodation_address text,
     accommodation_map_link text,
     accommodation_name text,
-    accommodation_contact text
+    accommodation_contact text,
+    num_adults integer DEFAULT 2,
+    num_children integer DEFAULT 0,
+    num_babies integer DEFAULT 0
 );
 
 -- trip_members

@@ -199,6 +199,9 @@ export const tripService = {
       accommodationMapLink: row.accommodation_map_link || undefined,
       accommodationName: row.accommodation_name || undefined,
       accommodationContact: row.accommodation_contact || undefined,
+      numAdults: row.num_adults !== undefined && row.num_adults !== null ? Number(row.num_adults) : 2,
+      numChildren: row.num_children !== undefined && row.num_children !== null ? Number(row.num_children) : 0,
+      numBabies: row.num_babies !== undefined && row.num_babies !== null ? Number(row.num_babies) : 0,
       vehicle,
       accommodation,
       flights,
@@ -261,6 +264,9 @@ export const tripService = {
         accommodation_map_link: tripData.accommodationMapLink || null,
         accommodation_name: tripData.accommodationName || null,
         accommodation_contact: tripData.accommodationContact || null,
+        num_adults: tripData.numAdults || 2,
+        num_children: tripData.numChildren || 0,
+        num_babies: tripData.numBabies || 0,
       })
       .eq("id", newTripId)
       .select()
@@ -347,6 +353,9 @@ export const tripService = {
         vehicle_data: trip.vehicle,
         accommodation_data: trip.accommodation,
         flights_data: trip.flights,
+        num_adults: trip.numAdults || 2,
+        num_children: trip.numChildren || 0,
+        num_babies: trip.numBabies || 0,
         updated_at: new Date().toISOString()
       })
       .eq("id", trip.id);
@@ -396,7 +405,7 @@ export const tripService = {
       const events = trip.itinerary[date] || [];
       events.forEach((evt, idx) => {
         incomingActivities.push({
-          id: evt.id.startsWith("evt-") && evt.id.length > 25 ? undefined : evt.id, // clean temp IDs if any
+          id: evt.id.startsWith("evt-") ? undefined : evt.id, // clean temp IDs if any
           trip_id: trip.id,
           trip_day_id: matchedDay?.id || null,
           title: evt.name,

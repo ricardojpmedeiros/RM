@@ -50,6 +50,7 @@ export default function MapPicker({ initialLat, initialLng, onSelect, onClose }:
   // Search & Coordinates entry state
   const [searchQuery, setSearchQuery] = useState("");
   const [searching, setSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
   const [coordLatInput, setCoordLatInput] = useState(String(initialLat || 39.5));
   const [coordLngInput, setCoordLngInput] = useState(String(initialLng || -8.0));
 
@@ -59,14 +60,17 @@ export default function MapPicker({ initialLat, initialLng, onSelect, onClose }:
     setCoordLngInput(String(lng));
   }, [lat, lng]);
 
-  const handleSearch = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!searchQuery.trim()) return;
+  // Handle Search Query triggering Nominatim API
+  const performSearch = async (queryStr: string, isManual = false) => {
+    if (!queryStr.trim()) {
+      setSearchResults([]);
+      return;
+    }
 
     setSearching(true);
     try {
       const resp = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1`,
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(queryStr)}&limit=5`,
         {
           headers: {
             "Accept-Language": "pt-PT,pt;q=0.9"
@@ -75,20 +79,44 @@ export default function MapPicker({ initialLat, initialLng, onSelect, onClose }:
       );
       const data = await resp.json();
       if (data && data.length > 0) {
-        const newLat = parseFloat(data[0].lat);
-        const newLng = parseFloat(data[0].lon);
-        setLat(newLat);
-        setLng(newLng);
-        setAddress(data[0].display_name || "");
+        setSearchResults(data);
+        if (isManual) {
+          // For manual searches, automatically fly to the first match as well
+          const first = data[0];
+          const newLat = parseFloat(first.lat);
+          const newLng = parseFloat(first.lon);
+          setLat(newLat);
+          setLng(newLng);
+          setAddress(first.display_name || "");
+        }
       } else {
-        alert("Nenhum local encontrado para esta pesquisa. Tente ser mais específico (ex: 'Zambujeira do Mar' ou 'Porto Covo').");
+        setSearchResults([]);
+        if (isManual) {
+          alert("Nenhum local encontrado. Tente ser mais específico (ex: 'Zambujeira do Mar' ou 'Porto Covo').");
+        }
       }
     } catch (err) {
       console.error("Error searching address:", err);
-      alert("Ocorreu um erro ao pesquisar o local.");
     } finally {
       setSearching(false);
     }
+  };
+
+  // Debounce query search on typing
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      performSearch(searchQuery, false);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    performSearch(searchQuery, true);
   };
 
   const handleCoordsSubmit = (e?: React.FormEvent) => {
@@ -152,7 +180,7 @@ export default function MapPicker({ initialLat, initialLng, onSelect, onClose }:
       if (currentPos.lat !== lat || currentPos.lng !== lng) {
         markerRef.current.setLatLng([lat, lng]);
         if (mapRef.current) {
-          mapRef.current.panTo([lat, lng]);
+          mapRef.current.setView([lat, lng], 15);
         }
       }
     }
@@ -213,7 +241,7 @@ export default function MapPicker({ initialLat, initialLng, onSelect, onClose }:
         {/* Search and Coordinates Control Panel */}
         <div className="p-3 bg-indigo-50/50 border-b border-indigo-100/40 shrink-0 space-y-2 text-xs">
           {/* 1. Address / Point Search */}
-          <form onSubmit={handleSearch} className="flex gap-2">
+          <form onSubmit={handleSearchSubmit} className="flex gap-2">
             <div className="relative flex-1">
               <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400">
                 <Search className="w-3.5 h-3.5" />
@@ -225,6 +253,33 @@ export default function MapPicker({ initialLat, initialLng, onSelect, onClose }:
                 placeholder="Pesquisar localidade, praia, hotel... (ex: Porto Covo)"
                 className="w-full pl-8 pr-2.5 py-1.5 border border-gray-200 rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
+              {/* Autocomplete / Suggestions list overlay */}
+              {searchResults.length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-48 overflow-y-auto z-50 text-xs divide-y divide-gray-100">
+                  {searchResults.map((result) => (
+                    <button
+                      key={result.place_id || result.osm_id + Math.random()}
+                      type="button"
+                      onClick={() => {
+                        const newLat = parseFloat(result.lat);
+                        const newLng = parseFloat(result.lon);
+                        setLat(newLat);
+                        setLng(newLng);
+                        setAddress(result.display_name || "");
+                        setSearchResults([]); // close dropdown
+                        setSearchQuery(result.display_name.split(",")[0]); // set input to clean name
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-indigo-50 transition-colors flex items-start gap-2 text-gray-700"
+                    >
+                      <MapPin className="w-3.5 h-3.5 text-indigo-500 mt-0.5 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold text-gray-800 truncate">{result.display_name.split(",")[0]}</div>
+                        <div className="text-[10px] text-gray-400 truncate">{result.display_name}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <button
               type="submit"
