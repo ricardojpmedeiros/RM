@@ -288,9 +288,8 @@ export default function App() {
         )}
       </div>
 
-      {/* Footer Branding */}
       <footer className="py-6 border-t border-gray-200 text-center text-xs text-gray-400 no-print" id="global-footer">
-        <p>© 2026 TripPilot Corporation. Todos os direitos reservados. Sistema Inteligente de Itinerários.</p>
+        <p>© 2026 TripPilot Corporation. Todos os direitos reservados. Desenvolvido por Ricardo Medeiros. Sistema Inteligente de Itinerários.</p>
       </footer>
 
       {/* Report Modal */}

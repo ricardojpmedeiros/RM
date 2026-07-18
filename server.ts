@@ -8,7 +8,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 // Set up server-side JSON storage for persistence
 const DB_FILE = path.join(process.cwd(), "db.json");

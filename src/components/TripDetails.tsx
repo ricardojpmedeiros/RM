@@ -50,7 +50,12 @@ import {
   Pill,
   Home,
   Hotel,
-  Building
+  Building,
+  Bike,
+  Plane,
+  Ship,
+  Footprints,
+  Train
 } from "lucide-react";
 
 const getBatteryOrFuelEstimate = (distanceStr?: string, vehicle?: Vehicle | null) => {
@@ -69,6 +74,81 @@ const getBatteryOrFuelEstimate = (distanceStr?: string, vehicle?: Vehicle | null
     const liters = ((km * 6.5) / 100).toFixed(1);
     return `~${pct || 1}% dep. (~${liters}L)`;
   }
+};
+
+const getTransportStats = (distance: number, mode: string) => {
+  let speed = 50; // km/h
+  let cost = 0;
+  let durationMin = 0;
+  let error: string | null = null;
+
+  switch (mode) {
+    case "A pé":
+      speed = 5;
+      durationMin = (distance / speed) * 60;
+      cost = 0;
+      break;
+    case "Bicicleta":
+      speed = 15;
+      durationMin = (distance / speed) * 60;
+      cost = distance * 0.10; // estimativa de aluguer/desgaste
+      break;
+    case "Trotinete Elétrica (20Km máx)":
+      speed = 18;
+      durationMin = (distance / speed) * 60;
+      cost = 1.00 + (durationMin * 0.20); // 1€ desbloqueio + 0.20€/minuto
+      if (distance > 20) {
+        error = "A distância excede o limite máximo de 20Km recomendado para Trotinete!";
+      }
+      break;
+    case "Carro":
+      speed = 50;
+      durationMin = (distance / speed) * 60;
+      cost = distance * 0.18; // combustível
+      break;
+    case "Metro":
+      speed = 35;
+      durationMin = (distance / speed) * 60 + 5; // +5 mins de espera média
+      cost = 1.65; // bilhete simples metro
+      break;
+    case "Comboio":
+      speed = 75;
+      durationMin = (distance / speed) * 60 + 10; // +10 mins de espera média
+      cost = 1.35 + (distance * 0.08);
+      break;
+    case "Avião":
+      speed = 650;
+      durationMin = (distance / speed) * 60 + 120; // +2 horas de antecedência/aeroporto
+      cost = 45 + (distance * 0.12);
+      break;
+    case "Barco":
+      speed = 25;
+      durationMin = (distance / speed) * 60 + 15; // +15 mins de embarque
+      cost = 3.00 + (distance * 0.15);
+      break;
+    default:
+      speed = 50;
+      durationMin = (distance / speed) * 60;
+      cost = distance * 0.18;
+  }
+
+  // Format duration nicely
+  let durationStr = "";
+  if (durationMin >= 60) {
+    const hours = Math.floor(durationMin / 60);
+    const mins = Math.round(durationMin % 60);
+    durationStr = mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+  } else {
+    durationStr = `${Math.ceil(durationMin)} min`;
+  }
+
+  return {
+    distance: `${distance.toFixed(1)} km`,
+    duration: durationStr,
+    durationMin,
+    cost,
+    error
+  };
 };
 
 const parseCoordinatesFromUrl = (url: string) => {
@@ -157,6 +237,7 @@ export default function TripDetails({
   const [evtGoogleMapsLink, setEvtGoogleMapsLink] = useState("");
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [showAccommodationMapPicker, setShowAccommodationMapPicker] = useState(false);
+  const [showHomeMapPicker, setShowHomeMapPicker] = useState(false);
   const [evtCategory, setEvtCategory] = useState("Atividade livre");
   const [evtDescription, setEvtDescription] = useState("");
   const [evtAddress, setEvtAddress] = useState("");
@@ -373,10 +454,32 @@ export default function TripDetails({
         time = times[idx % times.length];
       }
 
+      // Parse the numeric distance in km
+      let distanceKm = 5;
+      if (distance) {
+        const match = distance.match(/(\d+(?:\.\d+)?)/);
+        if (match) {
+          distanceKm = parseFloat(match[1]);
+        }
+      }
+
+      let computedTime = time;
+      let computedCost = 0;
+      let computedError: string | null = null;
+
+      if (evt.transportType) {
+        const stats = getTransportStats(distanceKm, evt.transportType);
+        computedTime = stats.duration;
+        computedCost = stats.cost;
+        computedError = stats.error;
+      }
+
       return {
         ...evt,
         distanceFromPrev: distance,
-        timeFromPrev: time
+        timeFromPrev: computedTime,
+        transportCost: computedCost,
+        transportError: computedError
       };
     });
   };
@@ -678,6 +781,25 @@ export default function TripDetails({
     const updatedItinerary = { ...trip.itinerary };
     updatedItinerary[selectedDate] = updatedItinerary[selectedDate].filter(e => e.id !== id);
 
+    onUpdateTrip({
+      ...trip,
+      itinerary: updatedItinerary
+    });
+  };
+
+  const handleUpdateEventTransport = (eventId: string, transportType: string) => {
+    const updatedItinerary = { ...trip.itinerary };
+    for (const date of Object.keys(updatedItinerary)) {
+      updatedItinerary[date] = (updatedItinerary[date] || []).map(evt => {
+        if (evt.id === eventId) {
+          return {
+            ...evt,
+            transportType: transportType
+          };
+        }
+        return evt;
+      });
+    }
     onUpdateTrip({
       ...trip,
       itinerary: updatedItinerary
@@ -1168,6 +1290,52 @@ export default function TripDetails({
               </div>
             ) : null}
 
+            {/* Morada de Casa (Origem/Fim) Section */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3 shadow-sm mt-3" id="trip-home-sidebar-card">
+              <h5 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Home className="w-3.5 h-3.5 text-indigo-500" />
+                Morada de Casa (Origem/Fim)
+              </h5>
+              
+              <div className="space-y-2.5 text-xs">
+                <div>
+                  <label className="block text-[10px] font-semibold text-gray-400 mb-0.5">Morada de Casa / Origem:</label>
+                  {isPlanner ? (
+                    <div className="space-y-1.5">
+                      <input
+                        type="text"
+                        placeholder="ex: Av. Almirante Reis, Lisboa"
+                        value={trip.homeAddress || ""}
+                        onChange={(e) => {
+                          onUpdateTrip({
+                            ...trip,
+                            homeAddress: e.target.value
+                          });
+                        }}
+                        className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-gray-50/50"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowHomeMapPicker(true)}
+                        className="w-full py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-bold border border-indigo-100/50 rounded-lg text-[10px] transition-colors flex items-center justify-center gap-1.5"
+                        id="home-map-picker-btn"
+                      >
+                        <Map className="w-3 h-3" />
+                        Escolher no Mapa / Pesquisar
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="font-medium text-gray-700 bg-gray-50 px-2.5 py-1.5 rounded-lg border border-gray-100 min-h-[28px] break-words">
+                      {trip.homeAddress || <span className="text-gray-400 italic">Não definida</span>}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <p className="text-[9px] text-gray-400 leading-normal">
+                Esta morada é utilizada como ponto de partida no 1º dia e de regresso no último dia da viagem. Nos restantes dias, prevalece a morada do alojamento.
+              </p>
+            </div>
+
             {/* Alojamento (Estadia) Section */}
             <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3 shadow-sm mt-3" id="trip-accommodation-sidebar-card">
               <h5 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -1328,8 +1496,10 @@ export default function TripDetails({
                 {/* 🏠 Dynamic Starting Location Leg (Home / Accommodation) */}
                 {(() => {
                   const isFirstDay = selectedDate === dates[0];
-                  const startAddr = isFirstDay ? trip.homeAddress : trip.accommodationAddress;
-                  const startLabel = isFirstDay ? "Saída de Casa (Início da Viagem)" : "Saída do Alojamento (Início do Dia)";
+                  const hasHomeAddress = !!trip.homeAddress;
+                  const startAddr = (isFirstDay && hasHomeAddress) ? trip.homeAddress : trip.accommodationAddress;
+                  const startLabel = (isFirstDay && hasHomeAddress) ? "Saída de Casa (Início da Viagem)" : "Saída do Alojamento (Início do Dia)";
+                  const isHome = isFirstDay && hasHomeAddress;
                   
                   if (!startAddr) return null;
                   
@@ -1341,13 +1511,13 @@ export default function TripDetails({
                     <div className="relative mb-6 -ml-[25px] md:-ml-[33px]" id="itinerary-day-start-leg">
                       {/* Start Marker Pin */}
                       <span className="absolute left-[8px] md:left-[16px] top-1 w-5 h-5 rounded-full bg-emerald-600 border-2 border-white shadow-sm flex items-center justify-center text-white z-10">
-                        {isFirstDay ? <Home className="w-3 h-3" /> : <Building className="w-3 h-3" />}
+                        {isHome ? <Home className="w-3 h-3" /> : <Building className="w-3 h-3" />}
                       </span>
                       
                       <div className="pl-8 md:pl-10">
                         <div className="bg-emerald-50 border border-emerald-100/50 rounded-xl px-3 py-2 text-xs text-emerald-800 font-semibold inline-flex flex-col gap-0.5 max-w-full">
                           <span className="text-[10px] uppercase font-bold text-emerald-600 tracking-wider flex items-center gap-1">
-                            {isFirstDay ? <Home className="w-3.5 h-3.5" /> : <Hotel className="w-3.5 h-3.5" />}
+                            {isHome ? <Home className="w-3.5 h-3.5" /> : <Hotel className="w-3.5 h-3.5" />}
                             {startLabel}
                           </span>
                           <span className="text-gray-700 truncate max-w-xs sm:max-w-md">{startAddr}</span>
@@ -1377,19 +1547,86 @@ export default function TripDetails({
                     {/* Circle marker pin */}
                     <span className="absolute -left-[21px] md:-left-[29px] top-1.5 w-4 h-4 rounded-full bg-indigo-600 border-2 border-white shadow-sm ring-4 ring-indigo-50 flex items-center justify-center text-[8px] text-white"></span>
 
-                    {/* Auto Calculated departure distance leg box */}
+                    {/* Auto Calculated departure distance leg box & Transport selector */}
                     {idx > 0 && (
-                      <div className="absolute -top-7 -left-[21px] md:-left-[29px] w-0.5 h-6 border-l border-dashed border-indigo-300">
-                        <div className="absolute left-3 -top-1.5 whitespace-nowrap bg-indigo-50 border border-indigo-100/50 rounded-md px-1.5 py-0.5 text-[9px] text-indigo-600 font-medium flex items-center gap-1 shadow-sm">
-                          <Navigation className="w-2.5 h-2.5 shrink-0 text-indigo-500" />
-                          <span>Origem → Destino: <strong>{evt.distanceFromPrev}</strong> (estimado {evt.timeFromPrev})</span>
-                          {trip.vehicle && (
-                            <span className="text-emerald-600 font-bold ml-1 pl-1 border-l border-indigo-100 flex items-center gap-0.5">
-                              {trip.vehicle.type === "electric" ? <BatteryCharging className="w-2.5 h-2.5 text-emerald-500" /> : <Fuel className="w-2.5 h-2.5 text-emerald-500" />}
-                              Est: {getBatteryOrFuelEstimate(evt.distanceFromPrev, trip.vehicle)}
+                      <div className="mb-4 mt-2 bg-indigo-50/40 border border-indigo-100/50 rounded-2xl p-4 text-xs text-indigo-950 shadow-xs flex flex-col gap-3 relative z-10">
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-100/40 pb-2">
+                          <div className="flex flex-wrap items-center gap-2 font-semibold text-indigo-900">
+                            <Navigation className="w-4 h-4 text-indigo-500 shrink-0" />
+                            <span>Deslocação: <strong className="text-indigo-700">{evt.distanceFromPrev}</strong></span>
+                            <span className="text-gray-300">|</span>
+                            <span>Tempo: <strong className="text-indigo-700">{evt.timeFromPrev}</strong></span>
+                            {evt.transportCost !== undefined && evt.transportCost > 0 && (
+                              <>
+                                <span className="text-gray-300">|</span>
+                                <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">
+                                  Custo Est.: {evt.transportCost.toFixed(2)}€
+                                </span>
+                              </>
+                            )}
+                            
+                            {/* Vehicle consumption, only if "Carro" (or default/undefined representing Carro) is active */}
+                            {trip.vehicle && (!evt.transportType || evt.transportType === "Carro") && (
+                              <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100 flex items-center gap-1">
+                                {trip.vehicle.type === "electric" ? (
+                                  <BatteryCharging className="w-3.5 h-3.5 text-emerald-500" />
+                                ) : (
+                                  <Fuel className="w-3.5 h-3.5 text-emerald-500" />
+                                )}
+                                Est: {getBatteryOrFuelEstimate(evt.distanceFromPrev, trip.vehicle)}
+                              </span>
+                            )}
+                          </div>
+
+                          {evt.transportType && (
+                            <span className="bg-indigo-600 text-white font-bold px-2.5 py-0.5 rounded-full text-[10px] uppercase tracking-wider">
+                              {evt.transportType}
                             </span>
                           )}
                         </div>
+
+                        {/* Interactive Transport Options */}
+                        <div className="flex flex-col gap-2">
+                          <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Selecionar Meio de Transporte:</span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {[
+                              { label: "A pé", value: "A pé", icon: Footprints },
+                              { label: "Bicicleta", value: "Bicicleta", icon: Bike },
+                              { label: "Trotinete", value: "Trotinete Elétrica (20Km máx)", icon: Sparkles },
+                              { label: "Carro", value: "Carro", icon: Car },
+                              { label: "Metro", value: "Metro", icon: Train },
+                              { label: "Comboio", value: "Comboio", icon: Train },
+                              { label: "Avião", value: "Avião", icon: Plane },
+                              { label: "Barco", value: "Barco", icon: Ship }
+                            ].map((mode) => {
+                              const isActive = evt.transportType === mode.value || (!evt.transportType && mode.value === "Carro");
+                              const IconComp = mode.icon;
+                              return (
+                                <button
+                                  key={mode.value}
+                                  onClick={() => handleUpdateEventTransport(evt.id, mode.value)}
+                                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border transition-all text-[11px] font-semibold ${
+                                    isActive
+                                      ? "bg-indigo-600 border-indigo-600 text-white shadow-xs"
+                                      : "bg-white border-gray-200 text-gray-700 hover:border-indigo-200 hover:bg-indigo-50/50"
+                                  }`}
+                                  title={mode.value}
+                                >
+                                  <IconComp className="w-3.5 h-3.5 shrink-0" />
+                                  <span>{mode.label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Trotinete maximum warning */}
+                        {evt.transportType === "Trotinete Elétrica (20Km máx)" && evt.transportError && (
+                          <div className="mt-1 flex items-center gap-1.5 text-amber-600 font-semibold bg-amber-50 px-2.5 py-1.5 rounded-xl border border-amber-100">
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0 text-amber-500" />
+                            <span>{evt.transportError}</span>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -1475,8 +1712,10 @@ export default function TripDetails({
                 {/* 🏠 Dynamic Returning Location Leg (Home / Accommodation) */}
                 {(() => {
                   const isLastDay = selectedDate === dates[dates.length - 1];
-                  const endAddr = isLastDay ? trip.homeAddress : trip.accommodationAddress;
-                  const endLabel = isLastDay ? "Regresso a Casa (Fim da Viagem)" : "Regresso ao Alojamento (Fim do Dia)";
+                  const hasHomeAddress = !!trip.homeAddress;
+                  const endAddr = (isLastDay && hasHomeAddress) ? trip.homeAddress : trip.accommodationAddress;
+                  const endLabel = (isLastDay && hasHomeAddress) ? "Regresso a Casa (Fim da Viagem)" : "Regresso ao Alojamento (Fim do Dia)";
+                  const isHome = isLastDay && hasHomeAddress;
                   
                   if (!endAddr) return null;
                   
@@ -1503,13 +1742,13 @@ export default function TripDetails({
 
                       {/* End Marker Pin */}
                       <span className="absolute left-[8px] md:left-[16px] top-[40px] w-5 h-5 rounded-full bg-rose-600 border-2 border-white shadow-sm flex items-center justify-center text-white z-10">
-                        {isLastDay ? <Home className="w-3 h-3" /> : <Building className="w-3 h-3" />}
+                        {isHome ? <Home className="w-3 h-3" /> : <Building className="w-3 h-3" />}
                       </span>
                       
                       <div className="pl-8 md:pl-10 pt-8">
                         <div className="bg-rose-50 border border-rose-100/50 rounded-xl px-3 py-2 text-xs text-rose-800 font-semibold inline-flex flex-col gap-0.5 max-w-full">
                           <span className="text-[10px] uppercase font-bold text-rose-600 tracking-wider flex items-center gap-1">
-                            {isLastDay ? <Home className="w-3.5 h-3.5" /> : <Hotel className="w-3.5 h-3.5" />}
+                            {isHome ? <Home className="w-3.5 h-3.5" /> : <Hotel className="w-3.5 h-3.5" />}
                             {endLabel}
                           </span>
                           <span className="text-gray-700 truncate max-w-xs sm:max-w-md">{endAddr}</span>
@@ -1832,33 +2071,59 @@ export default function TripDetails({
                   <h4 className="font-bold text-gray-900 text-sm">Dashboard Financeiro</h4>
                   
                   <div className="space-y-3 pt-2">
-                    <div className="flex justify-between items-center text-xs text-gray-500">
-                      <span>Realizado (Despesas Reais):</span>
-                      <span className="font-bold text-emerald-600 text-sm">
-                        {trip.expenses.filter(e => !e.isPlanned).reduce((acc, e) => acc + e.amount, 0).toFixed(2)} €
-                      </span>
-                    </div>
+                    {(() => {
+                      const real = trip.expenses.filter(e => !e.isPlanned).reduce((acc, e) => acc + e.amount, 0);
+                      
+                      // Calculate dynamic transport costs from the entire itinerary
+                      const totalTransportCost = Object.keys(trip.itinerary).reduce((sum, date) => {
+                        const events = trip.itinerary[date] || [];
+                        const legs = calculateNavigationLegs(events);
+                        return sum + legs.reduce((acc, evt) => acc + (evt.transportCost || 0), 0);
+                      }, 0);
 
-                    <div className="flex justify-between items-center text-xs text-gray-500">
-                      <span>Previsto (Orçamentado):</span>
-                      <span className="font-bold text-indigo-600 text-sm">
-                        {trip.expenses.filter(e => e.isPlanned).reduce((acc, e) => acc + e.amount, 0).toFixed(2)} €
-                      </span>
-                    </div>
+                      const plannedRaw = trip.expenses.filter(e => e.isPlanned).reduce((acc, e) => acc + e.amount, 0);
+                      const totalPlanned = plannedRaw + totalTransportCost;
+                      const diff = real - totalPlanned;
 
-                    <div className="flex justify-between items-center text-xs text-gray-500 border-t border-gray-100 pt-2.5">
-                      <span>Diferença:</span>
-                      {(() => {
-                        const real = trip.expenses.filter(e => !e.isPlanned).reduce((acc, e) => acc + e.amount, 0);
-                        const planned = trip.expenses.filter(e => e.isPlanned).reduce((acc, e) => acc + e.amount, 0);
-                        const diff = real - planned;
-                        return (
-                          <span className={`font-bold text-sm ${diff > 0 ? "text-rose-600" : "text-emerald-600"}`}>
-                            {diff > 0 ? `+${diff.toFixed(2)}` : diff.toFixed(2)} €
-                          </span>
-                        );
-                      })()}
-                    </div>
+                      return (
+                        <>
+                          <div className="flex justify-between items-center text-xs text-gray-500">
+                            <span>Realizado (Despesas Reais):</span>
+                            <span className="font-bold text-emerald-600 text-sm">
+                              {real.toFixed(2)} €
+                            </span>
+                          </div>
+
+                          <div className="flex justify-between items-center text-xs text-gray-500">
+                            <span>Previsto (Orçamentado):</span>
+                            <span className="font-semibold text-indigo-600 text-sm">
+                              {plannedRaw.toFixed(2)} €
+                            </span>
+                          </div>
+
+                          <div className="flex justify-between items-center text-xs text-gray-500">
+                            <span>Transporte Est. (Itinerário):</span>
+                            <span className="font-semibold text-indigo-500 text-sm">
+                              {totalTransportCost.toFixed(2)} €
+                            </span>
+                          </div>
+
+                          <div className="flex justify-between items-center text-xs text-gray-500 border-t border-gray-100 pt-2 bg-indigo-50/30 -mx-3 px-3 py-1.5 rounded-lg">
+                            <span className="font-medium text-indigo-950">Total Previsto + Transporte:</span>
+                            <span className="font-bold text-indigo-900">
+                              {totalPlanned.toFixed(2)} €
+                            </span>
+                          </div>
+
+                          <div className="flex justify-between items-center text-xs text-gray-500 border-t border-gray-100 pt-2.5">
+                            <span>Diferença:</span>
+                            <span className={`font-bold text-sm ${diff > 0 ? "text-rose-600" : "text-emerald-600"}`}>
+                              {diff > 0 ? `+${diff.toFixed(2)}` : diff.toFixed(2)} €
+                            </span>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
 
@@ -2879,6 +3144,21 @@ export default function TripDetails({
             setShowAccommodationMapPicker(false);
           }}
           onClose={() => setShowAccommodationMapPicker(false)}
+        />
+      )}
+
+      {showHomeMapPicker && (
+        <MapPicker
+          initialLat={undefined}
+          initialLng={undefined}
+          onSelect={(lat, lng, addr) => {
+            onUpdateTrip({
+              ...trip,
+              homeAddress: addr || trip.homeAddress
+            });
+            setShowHomeMapPicker(false);
+          }}
+          onClose={() => setShowHomeMapPicker(false)}
         />
       )}
 

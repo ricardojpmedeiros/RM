@@ -86,6 +86,7 @@ export default function Dashboard({
   const [accommodationName, setAccommodationName] = useState("");
   const [accommodationContact, setAccommodationContact] = useState("");
   const [showAccommodationMapPicker, setShowAccommodationMapPicker] = useState(false);
+  const [showHomeMapPicker, setShowHomeMapPicker] = useState(false);
 
   // Filter trips based on active user's permissions (Consultores only see assigned trips)
   const isPlanner = activeUser.role === "Planeador";
@@ -428,7 +429,7 @@ export default function Dashboard({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Data Início *</label>
                   <input
@@ -436,7 +437,7 @@ export default function Dashboard({
                     required
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base md:text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base md:text-sm min-h-[42px] bg-white"
                   />
                 </div>
                 <div>
@@ -446,7 +447,7 @@ export default function Dashboard({
                     required
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base md:text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base md:text-sm min-h-[42px] bg-white"
                   />
                 </div>
               </div>
@@ -640,6 +641,44 @@ export default function Dashboard({
                 </div>
               )}
 
+              {/* Morada de Casa Details */}
+              <div className="bg-indigo-50/40 p-4 rounded-xl border border-indigo-100">
+                <h5 className="text-xs font-bold text-indigo-900 uppercase mb-2 flex items-center gap-1.5">
+                  <Home className="w-4 h-4 text-indigo-600" />
+                  Morada de Casa (Início/Fim da Viagem)
+                </h5>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-gray-600 mb-1 flex items-center gap-1">
+                      <Home className="w-3.5 h-3.5 text-indigo-600" />
+                      Morada de Origem / Regresso (Opcional)
+                    </label>
+                    <input
+                      type="text"
+                      value={homeAddress}
+                      onChange={(e) => setHomeAddress(e.target.value)}
+                      placeholder="Ex: Av. Almirante Reis, Lisboa"
+                      className="w-full px-3 py-1.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base md:text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setShowHomeMapPicker(true)}
+                      className="w-full py-1.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-800 font-bold border border-indigo-200/50 rounded-lg text-[10px] transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <Map className="w-3.5 h-3.5" />
+                      Escolher no Mapa / Pesquisar
+                    </button>
+                  </div>
+                </div>
+                <p className="text-[10px] text-indigo-800 leading-normal mt-2 italic">
+                  * Esta morada será usada como base para a 1ª deslocação do 1º dia (ex: ida para o aeroporto) e a última deslocação do último dia. Nos restantes dias prevalece a morada do alojamento.
+                </p>
+              </div>
+
               {/* Alojamento (Estadia) Details */}
               <div className="bg-emerald-50/40 p-4 rounded-xl border border-emerald-100">
                 <h5 className="text-xs font-bold text-emerald-900 uppercase mb-2 flex items-center gap-1.5">
@@ -753,6 +792,20 @@ export default function Dashboard({
             setShowAccommodationMapPicker(false);
           }}
           onClose={() => setShowAccommodationMapPicker(false)}
+        />
+      )}
+
+      {showHomeMapPicker && (
+        <MapPicker
+          initialLat={undefined}
+          initialLng={undefined}
+          onSelect={(lat, lng, addr) => {
+            if (addr) {
+              setHomeAddress(addr);
+            }
+            setShowHomeMapPicker(false);
+          }}
+          onClose={() => setShowHomeMapPicker(false)}
         />
       )}
 

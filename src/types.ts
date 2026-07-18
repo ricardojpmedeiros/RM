@@ -24,6 +24,9 @@ export interface Event {
   notes: string;
   distanceFromPrev?: string;
   timeFromPrev?: string;
+  transportType?: string;
+  transportCost?: number;
+  transportError?: string | null;
 }
 
 export interface Expense {
