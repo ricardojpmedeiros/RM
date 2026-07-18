@@ -35,3 +35,24 @@
   }
 }
 
+/* Ensure mobile-friendly layout and prevent horizontal overflow/zoom problems */
+html,
+body,
+#root,
+#app-root-shell {
+  max-width: 100%;
+  overflow-x: hidden;
+  position: relative;
+  width: 100%;
+}
+
+/* Prevent iOS Safari from auto-zooming on form fields by ensuring minimum 16px font-size on mobile */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+
