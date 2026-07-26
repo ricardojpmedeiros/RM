@@ -44,6 +44,8 @@ import {
   RefreshCw,
   Pencil,
   Edit,
+  Save,
+  Settings,
   X,
   Search,
   Utensils,
@@ -57,6 +59,11 @@ import {
   Footprints,
   Train
 } from "lucide-react";
+
+const cleanAddressDisplay = (addr: string) => {
+  if (!addr) return "";
+  return addr.replace(/\s*\(GPS:\s*[-+]?\d+\.\d+\s*,\s*[-+]?\d+\.\d+\)/gi, "").trim();
+};
 
 const getBatteryOrFuelEstimate = (distanceStr?: string, vehicle?: Vehicle | null) => {
   if (!distanceStr || !vehicle) return null;
@@ -221,7 +228,7 @@ export default function TripDetails({
   onUpdateTrip,
   onOpenReport
 }: TripDetailsProps) {
-  const [activeTab, setActiveTab] = useState<"hoje" | "itinerary" | "map" | "expenses" | "documents" | "participants" | "vehicle">("hoje");
+  const [activeTab, setActiveTab] = useState<"hoje" | "itinerary" | "map" | "expenses" | "documents" | "participants" | "vehicle" | "settings">("hoje");
   
   // Day navigation for itinerary
   const dates = Object.keys(trip.itinerary).sort();
@@ -307,6 +314,61 @@ export default function TripDetails({
   const [invitations, setInvitations] = useState<TripInvitation[]>([]);
   const [loadingInvitations, setLoadingInvitations] = useState(false);
   const [sendingInvite, setSendingInvite] = useState(false);
+
+  // Local state variables for Settings tab inputs to prevent cursor jump/loss of focus while typing
+  const [settingsName, setSettingsName] = useState(trip.name);
+  const [settingsDestination, setSettingsDestination] = useState(trip.destination);
+  const [settingsDescription, setSettingsDescription] = useState(trip.description || "");
+  const [settingsHomeAddress, setSettingsHomeAddress] = useState(trip.homeAddress || "");
+  const [settingsAccName, setSettingsAccName] = useState(trip.accommodationName || "");
+  const [settingsAccContact, setSettingsAccContact] = useState(trip.accommodationContact || "");
+  const [settingsAccAddress, setSettingsAccAddress] = useState(trip.accommodationAddress || "");
+  const [settingsAccMapLink, setSettingsAccMapLink] = useState(trip.accommodationMapLink || "");
+  const [settingsNumAdults, setSettingsNumAdults] = useState<number>(trip.numAdults || 2);
+  const [settingsNumChildren, setSettingsNumChildren] = useState<number>(trip.numChildren || 0);
+  const [settingsNumBabies, setSettingsNumBabies] = useState<number>(trip.numBabies || 0);
+  const [showSettingsSuccess, setShowSettingsSuccess] = useState(false);
+
+  // Sync local states when the trip object changes (e.g. from props)
+  useEffect(() => {
+    setSettingsName(trip.name);
+    setSettingsDestination(trip.destination);
+    setSettingsDescription(trip.description || "");
+    setSettingsHomeAddress(trip.homeAddress || "");
+    setSettingsAccName(trip.accommodationName || "");
+    setSettingsAccContact(trip.accommodationContact || "");
+    setSettingsAccAddress(trip.accommodationAddress || "");
+    setSettingsAccMapLink(trip.accommodationMapLink || "");
+    setSettingsNumAdults(trip.numAdults || 2);
+    setSettingsNumChildren(trip.numChildren || 0);
+    setSettingsNumBabies(trip.numBabies || 0);
+  }, [trip]);
+
+  // Function to commit settings to database
+  const handleSaveSettings = (overrides?: Partial<Trip>) => {
+    if (activeUser.role !== "Planeador") return;
+    onUpdateTrip({
+      ...trip,
+      name: settingsName !== undefined ? settingsName : trip.name,
+      destination: settingsDestination !== undefined ? settingsDestination : trip.destination,
+      description: settingsDescription !== undefined ? settingsDescription : trip.description,
+      homeAddress: settingsHomeAddress !== undefined ? settingsHomeAddress : trip.homeAddress,
+      accommodationName: settingsAccName !== undefined ? settingsAccName : trip.accommodationName,
+      accommodationContact: settingsAccContact !== undefined ? settingsAccContact : trip.accommodationContact,
+      accommodationAddress: settingsAccAddress !== undefined ? settingsAccAddress : trip.accommodationAddress,
+      accommodationMapLink: settingsAccMapLink !== undefined ? settingsAccMapLink : trip.accommodationMapLink,
+      numAdults: settingsNumAdults !== undefined ? Number(settingsNumAdults) : trip.numAdults,
+      numChildren: settingsNumChildren !== undefined ? Number(settingsNumChildren) : trip.numChildren,
+      numBabies: settingsNumBabies !== undefined ? Number(settingsNumBabies) : trip.numBabies,
+      ...overrides
+    });
+
+    // Show success toast feedback
+    setShowSettingsSuccess(true);
+    setTimeout(() => {
+      setShowSettingsSuccess(false);
+    }, 2000);
+  };
 
   const loadInvitations = async () => {
     if (!trip.id) return;
@@ -603,14 +665,103 @@ export default function TripDetails({
   // Helper to obtain mock coordinates for home and accommodation addresses
   const getCoordinatesForAddress = (address: string) => {
     const addr = (address || "").toLowerCase();
+
+    // 1. Try to extract GPS coordinates if they are embedded in the address text
+    // E.g. "(GPS: 37.8512,-8.7909)"
+    const gpsMatch = addr.match(/(?:gps:\s*)?(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/i);
+    if (gpsMatch) {
+      return { lat: parseFloat(gpsMatch[1]), lng: parseFloat(gpsMatch[2]) };
+    }
+
+    // 2. If this matches the accommodation address and we have accommodationMapLink, parse it
+    if (trip.accommodationAddress && addr.includes(trip.accommodationAddress.toLowerCase())) {
+      if (trip.accommodationMapLink) {
+        const coords = parseCoordinatesFromUrl(trip.accommodationMapLink);
+        if (coords) {
+          return { lat: Number(coords.lat), lng: Number(coords.lng) };
+        }
+      }
+    }
+
+    // A helper to find a reference coordinate for the trip to help resolve generic terms like "aeroporto"
+    const getTripContextCoordinates = () => {
+      // Try to extract GPS from accommodationAddress
+      if (trip.accommodationAddress) {
+        const match = trip.accommodationAddress.match(/(?:gps:\s*)?(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/i);
+        if (match) return { lat: parseFloat(match[1]), lng: parseFloat(match[2]) };
+      }
+      // Try to extract GPS from homeAddress
+      if (trip.homeAddress) {
+        const match = trip.homeAddress.match(/(?:gps:\s*)?(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/i);
+        if (match) return { lat: parseFloat(match[1]), lng: parseFloat(match[2]) };
+      }
+      // Try to parse from accommodationMapLink
+      if (trip.accommodationMapLink) {
+        const coords = parseCoordinatesFromUrl(trip.accommodationMapLink);
+        if (coords) return { lat: Number(coords.lat), lng: Number(coords.lng) };
+      }
+      // Try match destination or home/acc text keywords
+      const textToSearch = `${trip.destination || ""} ${trip.accommodationAddress || ""} ${trip.homeAddress || ""}`.toLowerCase();
+      if (textToSearch.includes("ribeira grande")) return { lat: 37.8133, lng: -25.5335 };
+      if (textToSearch.includes("ponta delgada")) return { lat: 37.7412, lng: -25.6679 };
+      if (textToSearch.includes("são miguel") || textToSearch.includes("açores") || textToSearch.includes("azores")) {
+        return { lat: 37.7808, lng: -25.6628 };
+      }
+      if (textToSearch.includes("lisboa")) return { lat: 38.7223, lng: -9.1393 };
+      if (textToSearch.includes("porto covo")) return { lat: 37.8512, lng: -8.7909 };
+      if (textToSearch.includes("odeceixe")) return { lat: 37.4325, lng: -8.7702 };
+      if (textToSearch.includes("sagres")) return { lat: 37.0099, lng: -8.9391 };
+      if (textToSearch.includes("zambujeira") || textToSearch.includes("touril")) return { lat: 37.5255, lng: -8.7842 };
+      if (textToSearch.includes("sines")) return { lat: 37.9560, lng: -8.8698 };
+      if (textToSearch.includes("faro")) return { lat: 37.0176, lng: -7.9734 };
+      if (textToSearch.includes("porto")) return { lat: 41.1579, lng: -8.6291 };
+      if (textToSearch.includes("funchal") || textToSearch.includes("madeira")) return { lat: 32.6500, lng: -16.9000 };
+
+      return null;
+    };
+
+    // 3. Resolve generic "aeroporto" or "airport" to the airport closest to the trip's geographic context
+    if (addr.includes("aeroporto") || addr.includes("airport")) {
+      const airports = [
+        { lat: 38.7742, lng: -9.1342 }, // Lisboa
+        { lat: 41.2424, lng: -8.6786 }, // Porto
+        { lat: 37.0176, lng: -7.9734 }, // Faro
+        { lat: 37.7493, lng: -25.7104 }, // Ponta Delgada (João Paulo II)
+        { lat: 32.6978, lng: -16.7742 }, // Madeira (Funchal)
+        { lat: 38.7618, lng: -27.0908 }, // Terceira (Lajes)
+      ];
+
+      const ctx = getTripContextCoordinates();
+      if (ctx) {
+        let closest = airports[0];
+        let minDist = Infinity;
+        for (const ap of airports) {
+          const dx = (ap.lat - ctx.lat) * 111;
+          const dy = (ap.lng - ctx.lng) * 111 * Math.cos(ctx.lat * Math.PI / 180);
+          const dist = dx*dx + dy*dy;
+          if (dist < minDist) {
+            minDist = dist;
+            closest = ap;
+          }
+        }
+        return closest;
+      }
+      return { lat: 38.7742, lng: -9.1342 }; // Default to Lisboa
+    }
+
     if (addr.includes("lisboa")) return { lat: 38.7223, lng: -9.1393 };
     if (addr.includes("porto covo")) return { lat: 37.8512, lng: -8.7909 };
     if (addr.includes("odeceixe")) return { lat: 37.4325, lng: -8.7702 };
     if (addr.includes("sagres")) return { lat: 37.0099, lng: -8.9391 };
     if (addr.includes("zambujeira") || addr.includes("touril")) return { lat: 37.5255, lng: -8.7842 };
     if (addr.includes("sines")) return { lat: 37.9560, lng: -8.8698 };
-    if (addr.includes("aeroporto")) return { lat: 38.7742, lng: -9.1342 };
     if (addr.includes("faro")) return { lat: 37.0176, lng: -7.9734 };
+    if (addr.includes("ribeira grande")) return { lat: 37.8133, lng: -25.5335 };
+    if (addr.includes("ponta delgada")) return { lat: 37.7412, lng: -25.6679 };
+    if (addr.includes("são miguel") || addr.includes("açores") || addr.includes("azores")) return { lat: 37.7808, lng: -25.6628 };
+    if (addr.includes("funchal") || addr.includes("madeira")) return { lat: 32.6500, lng: -16.9000 };
+    if (addr.includes("porto")) return { lat: 41.1579, lng: -8.6291 };
+
     return { lat: 37.5 + (Math.random() - 0.5) * 0.5, lng: -8.5 + (Math.random() - 0.5) * 0.5 };
   };
 
@@ -961,7 +1112,14 @@ export default function TripDetails({
           </button>
           <div className="min-w-0">
             <h2 className="text-xl md:text-2xl font-bold text-gray-900 tracking-tight truncate">{trip.name}</h2>
-            <p className="text-xs text-gray-500 mt-0.5 truncate">{trip.destination} • {trip.startDate} a {trip.endDate}</p>
+            <p className="text-xs text-gray-500 mt-0.5 truncate">
+              {trip.destination} • {trip.startDate} a {trip.endDate}
+              {((trip.numAdults || 0) + (trip.numChildren || 0) + (trip.numBabies || 0)) > 0 && (
+                <>
+                  {" "}• {((trip.numAdults || 0) + (trip.numChildren || 0) + (trip.numBabies || 0))} {((trip.numAdults || 0) + (trip.numChildren || 0) + (trip.numBabies || 0)) === 1 ? "Viajante" : "Viajantes"}
+                </>
+              )}
+            </p>
           </div>
         </div>
 
@@ -1044,6 +1202,15 @@ export default function TripDetails({
             Veículo & Autonomia
           </button>
         )}
+        <button
+          onClick={() => setActiveTab("settings")}
+          className={`whitespace-nowrap text-xs md:text-sm font-semibold px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 ${
+            activeTab === "settings" ? "bg-white text-indigo-600 shadow-sm font-bold" : "text-gray-500 hover:text-gray-900"
+          }`}
+        >
+          <Settings className="w-4 h-4" />
+          Definições / Backoffice
+        </button>
       </div>
 
       {/* --- TAB 1: HOJE (Intelligent current event locator) --- */}
@@ -1289,253 +1456,6 @@ export default function TripDetails({
                 </button>
               </div>
             ) : null}
-
-            {/* Passageiros / Grupo Section */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3 shadow-sm mt-3" id="trip-passengers-sidebar-card">
-              <h5 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Users className="w-3.5 h-3.5 text-indigo-500" />
-                Participantes / Passageiros
-              </h5>
-              
-              <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                <div className="bg-slate-50 p-1.5 rounded-xl border border-gray-100">
-                  <div className="text-gray-400 text-[9px] font-bold uppercase">Adultos</div>
-                  {isPlanner ? (
-                    <input
-                      type="number"
-                      min={1}
-                      value={trip.numAdults || 2}
-                      onChange={(e) => {
-                        onUpdateTrip({
-                          ...trip,
-                          numAdults: Math.max(1, Number(e.target.value))
-                        });
-                      }}
-                      className="w-full text-center font-bold text-gray-800 bg-white border border-gray-200 rounded-lg mt-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                    />
-                  ) : (
-                    <div className="font-extrabold text-base text-gray-800 mt-1">{trip.numAdults || 2}</div>
-                  )}
-                </div>
-                <div className="bg-slate-50 p-1.5 rounded-xl border border-gray-100">
-                  <div className="text-gray-400 text-[9px] font-bold uppercase">Crianças</div>
-                  {isPlanner ? (
-                    <input
-                      type="number"
-                      min={0}
-                      value={trip.numChildren || 0}
-                      onChange={(e) => {
-                        onUpdateTrip({
-                          ...trip,
-                          numChildren: Math.max(0, Number(e.target.value))
-                        });
-                      }}
-                      className="w-full text-center font-bold text-gray-800 bg-white border border-gray-200 rounded-lg mt-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                    />
-                  ) : (
-                    <div className="font-extrabold text-base text-gray-800 mt-1">{trip.numChildren || 0}</div>
-                  )}
-                </div>
-                <div className="bg-slate-50 p-1.5 rounded-xl border border-gray-100">
-                  <div className="text-gray-400 text-[9px] font-bold uppercase">Bebés</div>
-                  {isPlanner ? (
-                    <input
-                      type="number"
-                      min={0}
-                      value={trip.numBabies || 0}
-                      onChange={(e) => {
-                        onUpdateTrip({
-                          ...trip,
-                          numBabies: Math.max(0, Number(e.target.value))
-                        });
-                      }}
-                      className="w-full text-center font-bold text-gray-800 bg-white border border-gray-200 rounded-lg mt-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                    />
-                  ) : (
-                    <div className="font-extrabold text-base text-gray-800 mt-1">{trip.numBabies || 0}</div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Morada de Casa (Origem/Fim) Section */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3 shadow-sm mt-3" id="trip-home-sidebar-card">
-              <h5 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Home className="w-3.5 h-3.5 text-indigo-500" />
-                Morada de Casa (Origem/Fim)
-              </h5>
-              
-              <div className="space-y-2.5 text-xs">
-                <div>
-                  <label className="block text-[10px] font-semibold text-gray-400 mb-0.5">Morada de Casa / Origem:</label>
-                  {isPlanner ? (
-                    <div className="space-y-1.5">
-                      <input
-                        type="text"
-                        placeholder="ex: Av. Almirante Reis, Lisboa"
-                        value={trip.homeAddress || ""}
-                        onChange={(e) => {
-                          onUpdateTrip({
-                            ...trip,
-                            homeAddress: e.target.value
-                          });
-                        }}
-                        className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-gray-50/50"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowHomeMapPicker(true)}
-                        className="w-full py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-bold border border-indigo-100/50 rounded-lg text-[10px] transition-colors flex items-center justify-center gap-1.5"
-                        id="home-map-picker-btn"
-                      >
-                        <Map className="w-3 h-3" />
-                        Escolher no Mapa / Pesquisar
-                      </button>
-                    </div>
-                  ) : (
-                    <p className="font-medium text-gray-700 bg-gray-50 px-2.5 py-1.5 rounded-lg border border-gray-100 min-h-[28px] break-words">
-                      {trip.homeAddress || <span className="text-gray-400 italic">Não definida</span>}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <p className="text-[9px] text-gray-400 leading-normal">
-                Esta morada é utilizada como ponto de partida no 1º dia e de regresso no último dia da viagem. Nos restantes dias, prevalece a morada do alojamento.
-              </p>
-            </div>
-
-            {/* Alojamento (Estadia) Section */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3 shadow-sm mt-3" id="trip-accommodation-sidebar-card">
-              <h5 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Building className="w-3.5 h-3.5 text-indigo-500" />
-                Alojamento (Estadia)
-              </h5>
-              
-              <div className="space-y-2.5 text-xs">
-                <div>
-                  <label className="block text-[10px] font-semibold text-gray-400 mb-0.5">Nome do Alojamento:</label>
-                  {isPlanner ? (
-                    <input
-                      type="text"
-                      placeholder="ex: Herdade do Touril"
-                      value={trip.accommodationName || ""}
-                      onChange={(e) => {
-                        onUpdateTrip({
-                          ...trip,
-                          accommodationName: e.target.value
-                        });
-                      }}
-                      className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-gray-50/50"
-                    />
-                  ) : (
-                    <p className="font-bold text-gray-800 bg-indigo-50/50 px-2.5 py-1.5 rounded-lg border border-indigo-100/30 min-h-[28px] break-words">
-                      {trip.accommodationName || <span className="text-gray-400 font-normal italic">Não definido</span>}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-semibold text-gray-400 mb-0.5">Contacto Telefónico:</label>
-                  {isPlanner ? (
-                    <input
-                      type="text"
-                      placeholder="ex: +351 283 960 000"
-                      value={trip.accommodationContact || ""}
-                      onChange={(e) => {
-                        onUpdateTrip({
-                          ...trip,
-                          accommodationContact: e.target.value
-                        });
-                      }}
-                      className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-gray-50/50"
-                    />
-                  ) : (
-                    <p className="font-medium text-gray-700 bg-gray-50 px-2.5 py-1.5 rounded-lg border border-gray-100 min-h-[28px] break-words flex items-center gap-1">
-                      {trip.accommodationContact ? (
-                        <>
-                          <span>📞</span>
-                          <a href={`tel:${trip.accommodationContact}`} className="hover:underline text-indigo-600 font-medium">{trip.accommodationContact}</a>
-                        </>
-                      ) : (
-                        <span className="text-gray-400 italic">Não definido</span>
-                      )}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-semibold text-gray-400 mb-0.5">Morada do Alojamento:</label>
-                  {isPlanner ? (
-                    <input
-                      type="text"
-                      placeholder="ex: Herdade do Touril, Zambujeira"
-                      value={trip.accommodationAddress || ""}
-                      onChange={(e) => {
-                        onUpdateTrip({
-                          ...trip,
-                          accommodationAddress: e.target.value
-                        });
-                      }}
-                      className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-gray-50/50"
-                    />
-                  ) : (
-                    <p className="font-medium text-gray-700 bg-gray-50 px-2.5 py-1.5 rounded-lg border border-gray-100 min-h-[28px] break-words">
-                      {trip.accommodationAddress || <span className="text-gray-400 italic">Não definida</span>}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-semibold text-gray-400 mb-0.5">Link de Localização (Mapa/Link):</label>
-                  {isPlanner ? (
-                    <div className="space-y-1.5">
-                      <input
-                        type="url"
-                        placeholder="ex: https://maps.app.goo.gl/..."
-                        value={trip.accommodationMapLink || ""}
-                        onChange={(e) => {
-                          onUpdateTrip({
-                            ...trip,
-                            accommodationMapLink: e.target.value
-                          });
-                        }}
-                        className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-gray-50/50"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowAccommodationMapPicker(true)}
-                        className="w-full py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-bold border border-indigo-100/50 rounded-lg text-[10px] transition-colors flex items-center justify-center gap-1.5"
-                        id="accommodation-map-picker-btn"
-                      >
-                        <Map className="w-3 h-3" />
-                        Escolher no Mapa / Pesquisar
-                      </button>
-                    </div>
-                  ) : null}
-
-                  {trip.accommodationMapLink ? (
-                    <a
-                      href={trip.accommodationMapLink}
-                      target="_blank"
-                      referrerPolicy="no-referrer"
-                      rel="noopener noreferrer"
-                      className="mt-1.5 flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 font-bold py-1.5 rounded-lg text-[10px] transition-colors"
-                      id="view-accommodation-map-btn"
-                    >
-                      <span>🗺️</span>
-                      Ver Localização no Mapa
-                    </a>
-                  ) : (
-                    !isPlanner && (
-                      <p className="text-[11px] text-gray-400 italic">Link não disponível</p>
-                    )
-                  )}
-                </div>
-              </div>
-              <p className="text-[9px] text-gray-400 leading-normal">
-                Defina o alojamento e o link de localização para futuras referências e para calcular deslocações automáticas do dia.
-              </p>
-            </div>
           </div>
 
           {/* Timeline Timeline */}
@@ -1588,7 +1508,7 @@ export default function TripDetails({
                             {isHome ? <Home className="w-3.5 h-3.5" /> : <Hotel className="w-3.5 h-3.5" />}
                             {startLabel}
                           </span>
-                          <span className="text-gray-700 truncate max-w-xs sm:max-w-md">{startAddr}</span>
+                          <span className="text-gray-700 truncate max-w-xs sm:max-w-md">{cleanAddressDisplay(startAddr)}</span>
                         </div>
                         
                         {/* Departure leg connection banner */}
@@ -1819,7 +1739,7 @@ export default function TripDetails({
                             {isHome ? <Home className="w-3.5 h-3.5" /> : <Hotel className="w-3.5 h-3.5" />}
                             {endLabel}
                           </span>
-                          <span className="text-gray-700 truncate max-w-xs sm:max-w-md">{endAddr}</span>
+                          <span className="text-gray-700 truncate max-w-xs sm:max-w-md">{cleanAddressDisplay(endAddr)}</span>
                         </div>
                       </div>
                     </div>
@@ -3017,6 +2937,264 @@ export default function TripDetails({
         </div>
       )}
 
+      {/* --- TAB 8: DEFINIÇÕES (Backoffice/Settings) --- */}
+      {activeTab === "settings" && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 md:p-6 space-y-6" id="view-settings">
+          <div className="border-b border-gray-50 pb-3">
+            <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
+              <Settings className="w-5 h-5 text-indigo-600 animate-spin-slow" />
+              Definições da Viagem & Backoffice
+            </h3>
+            <p className="text-xs text-gray-500 mt-1">
+              {isPlanner 
+                ? "Gira as informações de origem/fim da viagem, alojamento principal e detalhes básicos da viagem." 
+                : "Consulte os detalhes de backoffice definidos para esta viagem."
+              }
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Left side: Basic Details & Home Address */}
+            <div className="space-y-4">
+              <div className="bg-indigo-50/20 p-5 rounded-2xl border border-indigo-100/50 space-y-4">
+                <h4 className="font-bold text-indigo-950 text-sm flex items-center gap-2 border-b border-indigo-100/40 pb-2">
+                  <Info className="w-4 h-4 text-indigo-600" />
+                  Detalhes Básicos
+                </h4>
+                
+                <div className="space-y-3 text-xs">
+                  <div>
+                    <label className="block text-gray-600 font-bold mb-1">Nome da Viagem *</label>
+                    <input
+                      type="text"
+                      disabled={!isPlanner}
+                      value={settingsName}
+                      onChange={(e) => setSettingsName(e.target.value)}
+                      onBlur={() => handleSaveSettings()}
+                      className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-gray-800 disabled:opacity-75 disabled:bg-gray-50"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-600 font-bold mb-1">Destino *</label>
+                    <input
+                      type="text"
+                      disabled={!isPlanner}
+                      value={settingsDestination}
+                      onChange={(e) => setSettingsDestination(e.target.value)}
+                      onBlur={() => handleSaveSettings()}
+                      className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-gray-800 disabled:opacity-75 disabled:bg-gray-50"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-600 font-bold mb-1">Descrição</label>
+                    <textarea
+                      disabled={!isPlanner}
+                      value={settingsDescription}
+                      onChange={(e) => setSettingsDescription(e.target.value)}
+                      onBlur={() => handleSaveSettings()}
+                      rows={3}
+                      className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-gray-800 disabled:opacity-75 disabled:bg-gray-50"
+                    />
+                  </div>
+
+                  {/* Passageiros / Passenger Metrics */}
+                  <div className="pt-2 border-t border-indigo-100/40">
+                    <label className="block text-gray-700 font-bold mb-2">Número de Passageiros</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-[10px] text-gray-500 font-semibold mb-1">Adultos</label>
+                        <input
+                          type="number"
+                          min={1}
+                          disabled={!isPlanner}
+                          value={settingsNumAdults}
+                          onChange={(e) => setSettingsNumAdults(Math.max(1, Number(e.target.value)))}
+                          onBlur={() => handleSaveSettings()}
+                          className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-center text-xs font-bold text-gray-800 disabled:opacity-75 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-gray-500 font-semibold mb-1">Crianças</label>
+                        <input
+                          type="number"
+                          min={0}
+                          disabled={!isPlanner}
+                          value={settingsNumChildren}
+                          onChange={(e) => setSettingsNumChildren(Math.max(0, Number(e.target.value)))}
+                          onBlur={() => handleSaveSettings()}
+                          className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-center text-xs font-bold text-gray-800 disabled:opacity-75 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-gray-500 font-semibold mb-1">Bebés</label>
+                        <input
+                          type="number"
+                          min={0}
+                          disabled={!isPlanner}
+                          value={settingsNumBabies}
+                          onChange={(e) => setSettingsNumBabies(Math.max(0, Number(e.target.value)))}
+                          onBlur={() => handleSaveSettings()}
+                          className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-center text-xs font-bold text-gray-800 disabled:opacity-75 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Morada de Casa Section */}
+              <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+                <h4 className="font-bold text-gray-800 text-sm flex items-center gap-2 border-b border-gray-100 pb-2">
+                  <Home className="w-4 h-4 text-indigo-500" />
+                  Morada de Casa (Origem/Fim da Viagem)
+                </h4>
+
+                <div className="space-y-3 text-xs">
+                  <div>
+                    <label className="block text-gray-500 font-medium mb-1">Morada de Casa / Origem:</label>
+                    <input
+                      type="text"
+                      disabled={!isPlanner}
+                      placeholder="ex: Av. Almirante Reis, Lisboa"
+                      value={settingsHomeAddress}
+                      onChange={(e) => setSettingsHomeAddress(e.target.value)}
+                      onBlur={() => handleSaveSettings()}
+                      className="w-full px-3 py-2 bg-gray-50/50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-gray-800 disabled:opacity-75 disabled:bg-gray-50"
+                    />
+                  </div>
+
+                  {isPlanner && (
+                    <button
+                      type="button"
+                      onClick={() => setShowHomeMapPicker(true)}
+                      className="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-bold border border-indigo-100/50 rounded-xl text-xs transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Map className="w-4 h-4" />
+                      Escolher no Mapa / Pesquisar Localização
+                    </button>
+                  )}
+                </div>
+                <p className="text-[10px] text-gray-400 leading-relaxed italic">
+                  Esta morada é opcional. Quando definida, é utilizada de forma inteligente como o ponto de partida do primeiro dia e o ponto de regresso no final do último dia da viagem. Nos restantes dias, as rotas e distâncias partem da morada da estadia.
+                </p>
+              </div>
+            </div>
+
+            {/* Right side: Accommodation details */}
+            <div className="space-y-4">
+              <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+                <h4 className="font-bold text-gray-800 text-sm flex items-center gap-2 border-b border-gray-100 pb-2">
+                  <Building className="w-4 h-4 text-indigo-500" />
+                  Alojamento Principal (Estadia)
+                </h4>
+
+                <div className="space-y-3 text-xs">
+                  <div>
+                    <label className="block text-gray-500 font-medium mb-1">Nome do Alojamento:</label>
+                    <input
+                      type="text"
+                      disabled={!isPlanner}
+                      placeholder="ex: Herdade do Touril"
+                      value={settingsAccName}
+                      onChange={(e) => setSettingsAccName(e.target.value)}
+                      onBlur={() => handleSaveSettings()}
+                      className="w-full px-3 py-2 bg-gray-50/50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-gray-800 disabled:opacity-75 disabled:bg-gray-50"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-500 font-medium mb-1">Contacto Telefónico:</label>
+                    <input
+                      type="text"
+                      disabled={!isPlanner}
+                      placeholder="ex: +351 283 960 000"
+                      value={settingsAccContact}
+                      onChange={(e) => setSettingsAccContact(e.target.value)}
+                      onBlur={() => handleSaveSettings()}
+                      className="w-full px-3 py-2 bg-gray-50/50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-gray-800 disabled:opacity-75 disabled:bg-gray-50"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-500 font-medium mb-1">Morada do Alojamento:</label>
+                    <input
+                      type="text"
+                      disabled={!isPlanner}
+                      placeholder="ex: Herdade do Touril, Zambujeira do Mar"
+                      value={settingsAccAddress}
+                      onChange={(e) => setSettingsAccAddress(e.target.value)}
+                      onBlur={() => handleSaveSettings()}
+                      className="w-full px-3 py-2 bg-gray-50/50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-gray-800 disabled:opacity-75 disabled:bg-gray-50"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-500 font-medium mb-1">Link de Localização (Google Maps):</label>
+                    <input
+                      type="url"
+                      disabled={!isPlanner}
+                      placeholder="ex: https://maps.app.goo.gl/..."
+                      value={settingsAccMapLink}
+                      onChange={(e) => setSettingsAccMapLink(e.target.value)}
+                      onBlur={() => handleSaveSettings()}
+                      className="w-full px-3 py-2 bg-gray-50/50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-gray-800 disabled:opacity-75 disabled:bg-gray-50"
+                    />
+                  </div>
+
+                  {isPlanner && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAccommodationMapPicker(true)}
+                      className="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-bold border border-indigo-100/50 rounded-xl text-xs transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Map className="w-4 h-4" />
+                      Escolher no Mapa / Pesquisar Localização
+                    </button>
+                  )}
+
+                  {trip.accommodationMapLink && (
+                    <a
+                      href={trip.accommodationMapLink}
+                      target="_blank"
+                      referrerPolicy="no-referrer"
+                      rel="noopener noreferrer"
+                      className="w-full py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold border border-emerald-200 rounded-xl text-xs transition-colors flex items-center justify-center gap-2"
+                    >
+                      <span>🗺️</span>
+                      Ver Localização no Google Maps
+                    </a>
+                  )}
+                </div>
+                <p className="text-[10px] text-gray-400 leading-relaxed italic">
+                  Defina o local de alojamento/estadia da viagem. Esta morada é utilizada como ponto de origem e destino diário nos dias intermédios do itinerário para calcular as rotas diárias de forma inteligente.
+                </p>
+              </div>
+            </div>
+
+            {/* Bottom Actions Row */}
+            {isPlanner && (
+              <div className="md:col-span-2 flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+                {showSettingsSuccess && (
+                  <span className="text-xs font-semibold text-emerald-600 animate-pulse bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">
+                    ✓ Alterações guardadas com sucesso!
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => handleSaveSettings()}
+                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-100 flex items-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Guardar Definições</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* --- ADD EVENT / EDIT EVENT MODAL (Planner only) --- */}
       {showEventModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
@@ -3204,10 +3382,14 @@ export default function TripDetails({
           initialLat={undefined}
           initialLng={undefined}
           onSelect={(lat, lng, addr) => {
-            onUpdateTrip({
-              ...trip,
-              accommodationAddress: addr || trip.accommodationAddress,
-              accommodationMapLink: `https://www.google.com/maps?q=${lat},${lng}`
+            const cleanAddr = cleanAddressDisplay(addr || settingsAccAddress);
+            const finalAddr = `${cleanAddr} (GPS: ${lat},${lng})`;
+            const finalLink = `https://www.google.com/maps?q=${lat},${lng}`;
+            setSettingsAccAddress(finalAddr);
+            setSettingsAccMapLink(finalLink);
+            handleSaveSettings({
+              accommodationAddress: finalAddr,
+              accommodationMapLink: finalLink
             });
             setShowAccommodationMapPicker(false);
           }}
@@ -3220,9 +3402,11 @@ export default function TripDetails({
           initialLat={undefined}
           initialLng={undefined}
           onSelect={(lat, lng, addr) => {
-            onUpdateTrip({
-              ...trip,
-              homeAddress: addr || trip.homeAddress
+            const cleanAddr = cleanAddressDisplay(addr || settingsHomeAddress);
+            const finalAddr = `${cleanAddr} (GPS: ${lat},${lng})`;
+            setSettingsHomeAddress(finalAddr);
+            handleSaveSettings({
+              homeAddress: finalAddr
             });
             setShowHomeMapPicker(false);
           }}

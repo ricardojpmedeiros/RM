@@ -1,6 +1,11 @@
 import { supabase, isSupabaseConfigured } from "../lib/supabase";
 import { Trip, Event, Expense, Document, UserProfile } from "../types";
 
+function isUUID(str: any): boolean {
+  if (typeof str !== "string") return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+}
+
 export const tripService = {
   // 1. Fetch all trips where the user is a participant
   async fetchAllTrips(): Promise<Trip[]> {
@@ -166,9 +171,23 @@ export const tripService = {
 
     // Map embedded fields
     let vehicle = null;
+    let fallbackAdults = 2;
+    let fallbackChildren = 0;
+    let fallbackBabies = 0;
+
     if (row.vehicle_data) {
       try {
-        vehicle = typeof row.vehicle_data === "string" ? JSON.parse(row.vehicle_data) : row.vehicle_data;
+        const parsed = typeof row.vehicle_data === "string" ? JSON.parse(row.vehicle_data) : row.vehicle_data;
+        if (parsed) {
+          if (parsed.numAdults !== undefined) fallbackAdults = Number(parsed.numAdults);
+          if (parsed.numChildren !== undefined) fallbackChildren = Number(parsed.numChildren);
+          if (parsed.numBabies !== undefined) fallbackBabies = Number(parsed.numBabies);
+
+          if (parsed.id || parsed.name || parsed.type) {
+            const { numAdults, numChildren, numBabies, ...cleanVehicle } = parsed;
+            vehicle = cleanVehicle;
+          }
+        }
       } catch {}
     }
 
@@ -199,9 +218,9 @@ export const tripService = {
       accommodationMapLink: row.accommodation_map_link || undefined,
       accommodationName: row.accommodation_name || undefined,
       accommodationContact: row.accommodation_contact || undefined,
-      numAdults: row.num_adults !== undefined && row.num_adults !== null ? Number(row.num_adults) : 2,
-      numChildren: row.num_children !== undefined && row.num_children !== null ? Number(row.num_children) : 0,
-      numBabies: row.num_babies !== undefined && row.num_babies !== null ? Number(row.num_babies) : 0,
+      numAdults: row.num_adults !== undefined && row.num_adults !== null ? Number(row.num_adults) : fallbackAdults,
+      numChildren: row.num_children !== undefined && row.num_children !== null ? Number(row.num_children) : fallbackChildren,
+      numBabies: row.num_babies !== undefined && row.num_babies !== null ? Number(row.num_babies) : fallbackBabies,
       vehicle,
       accommodation,
       flights,
@@ -252,11 +271,19 @@ export const tripService = {
       throw new Error(error?.message || "Erro ao criar viagem");
     }
 
+    // Embed passenger metrics inside vehicle_data to avoid column schema-cache mismatches
+    const combinedVehicleData = {
+      ...(tripData.vehicle || {}),
+      numAdults: tripData.numAdults || 2,
+      numChildren: tripData.numChildren || 0,
+      numBabies: tripData.numBabies || 0
+    };
+
     // Now update optional fields (vehicle, accommodation, etc.)
     const { data: row, error: updateError } = await supabase
       .from("trips")
       .update({
-        vehicle_data: tripData.vehicle || null,
+        vehicle_data: combinedVehicleData,
         accommodation_data: tripData.accommodation || null,
         flights_data: tripData.flights || [],
         home_address: tripData.homeAddress || null,
@@ -264,9 +291,6 @@ export const tripService = {
         accommodation_map_link: tripData.accommodationMapLink || null,
         accommodation_name: tripData.accommodationName || null,
         accommodation_contact: tripData.accommodationContact || null,
-        num_adults: tripData.numAdults || 2,
-        num_children: tripData.numChildren || 0,
-        num_babies: tripData.numBabies || 0,
       })
       .eq("id", newTripId)
       .select()
@@ -335,27 +359,32 @@ export const tripService = {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("Utilizador não autenticado.");
 
+    // Embed passenger metrics inside vehicle_data to avoid column schema-cache mismatches
+    const combinedVehicleData = {
+      ...(trip.vehicle || {}),
+      numAdults: (trip.numAdults !== undefined && trip.numAdults !== null) ? Number(trip.numAdults) : 2,
+      numChildren: (trip.numChildren !== undefined && trip.numChildren !== null) ? Number(trip.numChildren) : 0,
+      numBabies: (trip.numBabies !== undefined && trip.numBabies !== null) ? Number(trip.numBabies) : 0,
+    };
+
     // Update main trips table
     const { error: tripUpdateErr } = await supabase
       .from("trips")
       .update({
-        title: trip.name,
-        destination: trip.destination,
-        start_date: trip.startDate,
-        end_date: trip.endDate,
-        description: trip.description,
+        title: trip.name || "Sem Nome",
+        destination: (trip.destination && trip.destination.trim() !== "") ? trip.destination : null,
+        start_date: (trip.startDate && trip.startDate.trim() !== "") ? trip.startDate : null,
+        end_date: (trip.endDate && trip.endDate.trim() !== "") ? trip.endDate : null,
+        description: (trip.description && trip.description.trim() !== "") ? trip.description : null,
         status: trip.status === "archived" ? "archived" : "active",
         home_address: trip.homeAddress || null,
         accommodation_address: trip.accommodationAddress || null,
         accommodation_map_link: trip.accommodationMapLink || null,
         accommodation_name: trip.accommodationName || null,
         accommodation_contact: trip.accommodationContact || null,
-        vehicle_data: trip.vehicle,
+        vehicle_data: combinedVehicleData,
         accommodation_data: trip.accommodation,
         flights_data: trip.flights,
-        num_adults: trip.numAdults || 2,
-        num_children: trip.numChildren || 0,
-        num_babies: trip.numBabies || 0,
         updated_at: new Date().toISOString()
       })
       .eq("id", trip.id);
@@ -405,7 +434,7 @@ export const tripService = {
       const events = trip.itinerary[date] || [];
       events.forEach((evt, idx) => {
         incomingActivities.push({
-          id: evt.id.startsWith("evt-") ? undefined : evt.id, // clean temp IDs if any
+          id: isUUID(evt.id) ? evt.id : undefined, // clean temp IDs if any (must be valid UUID or undefined)
           trip_id: trip.id,
           trip_day_id: matchedDay?.id || null,
           title: evt.name,
@@ -455,7 +484,7 @@ export const tripService = {
 
     // Sync expenses
     const incomingExpenses = trip.expenses.map(exp => ({
-      id: exp.id.startsWith("exp-") && exp.id.length > 25 ? undefined : exp.id,
+      id: isUUID(exp.id) ? exp.id : undefined, // clean temp IDs (must be valid UUID or undefined)
       trip_id: trip.id,
       category: exp.category,
       description: exp.description,

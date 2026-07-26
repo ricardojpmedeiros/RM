@@ -137,7 +137,6 @@ export default function App() {
   // Sync updates back to Supabase
   const handleUpdateTrip = async (updated: Trip) => {
     try {
-      setLoading(true);
       const freshTrip = await tripService.updateTrip(updated);
       if (freshTrip) {
         setTrips(prev => prev.map(t => t.id === updated.id ? freshTrip : t));
@@ -146,8 +145,6 @@ export default function App() {
     } catch (err) {
       console.error("Failed to update trip:", err);
       alert("Não foi possível atualizar a viagem. Verifique as suas permissões.");
-    } finally {
-      setLoading(false);
     }
   };
 

@@ -31,6 +31,93 @@ import {
 } from "lucide-react";
 import MapPicker from "./MapPicker";
 
+const cleanAddressDisplay = (addr: string) => {
+  if (!addr) return "";
+  return addr.replace(/\s*\(GPS:\s*[-+]?\d+\.\d+\s*,\s*[-+]?\d+\.\d+\)/gi, "").trim();
+};
+
+const getDestinationImage = (destination: string): string => {
+  const dest = (destination || "").toLowerCase().trim();
+  
+  if (dest.includes("lisboa") || dest.includes("lisbon")) {
+    return "https://images.unsplash.com/photo-1509840841025-9088ba78a826?auto=format&fit=crop&w=800&q=80";
+  }
+  if (dest.includes("porto") || dest.includes("oporte")) {
+    return "https://images.unsplash.com/photo-1555881400-74d7acaacd8b?auto=format&fit=crop&w=800&q=80";
+  }
+  if (dest.includes("algarve") || dest.includes("faro") || dest.includes("albufeira") || dest.includes("portimão") || dest.includes("lagos") || dest.includes("tavira")) {
+    return "https://images.unsplash.com/photo-1517411032315-54ef2cb783bb?auto=format&fit=crop&w=800&q=80";
+  }
+  if (dest.includes("madeira") || dest.includes("funchal") || dest.includes("porto santo")) {
+    return "https://images.unsplash.com/photo-1541414779316-956a5084c0d4?auto=format&fit=crop&w=800&q=80";
+  }
+  if (dest.includes("açores") || dest.includes("azores") || dest.includes("pontadelgada") || dest.includes("são miguel") || dest.includes("terceira")) {
+    return "https://images.unsplash.com/photo-1627581297129-ec6c11786576?auto=format&fit=crop&w=800&q=80";
+  }
+  if (dest.includes("coimbra")) {
+    return "https://images.unsplash.com/photo-1579294814980-0a1da43fa48a?auto=format&fit=crop&w=800&q=80";
+  }
+  if (dest.includes("braga") || dest.includes("bom jesus")) {
+    return "https://images.unsplash.com/photo-1554238128-c92c102a0a2c?auto=format&fit=crop&w=800&q=80";
+  }
+  if (dest.includes("aveiro")) {
+    return "https://images.unsplash.com/photo-1552554706-e55f56d3b077?auto=format&fit=crop&w=800&q=80";
+  }
+  if (dest.includes("sintra")) {
+    return "https://images.unsplash.com/photo-1590001155093-a3c66ab0c3ff?auto=format&fit=crop&w=800&q=80";
+  }
+  if (dest.includes("alentejo") || dest.includes("évora") || dest.includes("comporta") || dest.includes("zambujeira")) {
+    return "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=800&q=80";
+  }
+  if (dest.includes("gerês") || dest.includes("gerez") || dest.includes("peneda")) {
+    return "https://images.unsplash.com/photo-1542401886-65d6c61db217?auto=format&fit=crop&w=800&q=80";
+  }
+  if (dest.includes("madrid") || dest.includes("espanha") || dest.includes("spain") || dest.includes("sevilla") || dest.includes("granada")) {
+    return "https://images.unsplash.com/photo-1539650116574-8efeb43e2750?auto=format&fit=crop&w=800&q=80";
+  }
+  if (dest.includes("barcelona")) {
+    return "https://images.unsplash.com/photo-1583422409516-2895a77efedd?auto=format&fit=crop&w=800&q=80";
+  }
+  if (dest.includes("paris") || dest.includes("frança") || dest.includes("france")) {
+    return "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=80";
+  }
+  if (dest.includes("roma") || dest.includes("rome") || dest.includes("itália") || dest.includes("italy") || dest.includes("venezia") || dest.includes("veneza") || dest.includes("florença") || dest.includes("firenze")) {
+    return "https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&w=800&q=80";
+  }
+  if (dest.includes("londres") || dest.includes("london") || dest.includes("reino unido") || dest.includes("uk") || dest.includes("inglaterra") || dest.includes("england")) {
+    return "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=800&q=80";
+  }
+  if (dest.includes("nova iorque") || dest.includes("new york") || dest.includes("ny") || dest.includes("eua") || dest.includes("usa") || dest.includes("estados unidos")) {
+    return "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?auto=format&fit=crop&w=800&q=80";
+  }
+  if (dest.includes("berlim") || dest.includes("berlin") || dest.includes("munique") || dest.includes("alemanha") || dest.includes("germany")) {
+    return "https://images.unsplash.com/photo-1599946347371-68eb71b16afc?auto=format&fit=crop&w=800&q=80";
+  }
+  if (dest.includes("suíça") || dest.includes("switzerland") || dest.includes("alpes") || dest.includes("zurique") || dest.includes("genebra")) {
+    return "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=800&q=80";
+  }
+  if (dest.includes("tóquio") || dest.includes("tokyo") || dest.includes("quioto") || dest.includes("kyoto") || dest.includes("japão") || dest.includes("japan")) {
+    return "https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=800&q=80";
+  }
+  if (dest.includes("tailândia") || dest.includes("thailand") || dest.includes("bangkok") || dest.includes("phuket")) {
+    return "https://images.unsplash.com/photo-1528181304800-2f1702424b21?auto=format&fit=crop&w=800&q=80";
+  }
+  if (dest.includes("brasil") || dest.includes("brazil") || dest.includes("rio de janeiro") || dest.includes("são paulo")) {
+    return "https://images.unsplash.com/photo-1483729558449-99ef09a8c325?auto=format&fit=crop&w=800&q=80";
+  }
+  if (dest.includes("praia") || dest.includes("beach") || dest.includes("caribe") || dest.includes("maldivas") || dest.includes("bahamas") || dest.includes("bora bora")) {
+    return "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80";
+  }
+  if (dest.includes("neve") || dest.includes("ski") || dest.includes("serra da estrela") || dest.includes("andorra")) {
+    return "https://images.unsplash.com/photo-1482867996988-2faec3cbb4f9?auto=format&fit=crop&w=800&q=80";
+  }
+  if (dest.includes("natureza") || dest.includes("floresta") || dest.includes("campo") || dest.includes("camping")) {
+    return "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=800&q=80";
+  }
+
+  return "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80";
+};
+
 interface DashboardProps {
   trips: Trip[];
   activeUser: UserProfile;
@@ -298,98 +385,114 @@ export default function Dashboard({
                 const totalDays = Object.keys(trip.itinerary).length;
                 const totalEvents = Object.values(trip.itinerary).reduce((sum, events) => sum + events.length, 0);
                 const hasElectric = trip.vehicle?.type === "electric";
+                const bgImage = getDestinationImage(trip.destination || trip.name);
                 
                 return (
                   <div 
                     key={trip.id}
-                    className="group border border-gray-100 hover:border-indigo-100 bg-white rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+                    className="group relative overflow-hidden rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between min-h-[260px] text-white border border-gray-100"
                   >
-                    <div>
-                      {/* Name & status tag */}
-                      <div className="flex justify-between items-start gap-2 mb-2">
-                        <h4 className="text-lg font-bold text-gray-900 group-hover:text-indigo-600 transition-colors line-clamp-1">{trip.name}</h4>
-                        <span className={`text-[10px] px-2 py-0.5 font-bold rounded-full ${
-                          trip.status === "active" 
-                            ? "bg-emerald-50 text-emerald-700 border border-emerald-100" 
-                            : "bg-gray-100 text-gray-600"
-                        }`}>
-                          {trip.status === "active" ? "Ativa" : "Arquivada"}
-                        </span>
-                      </div>
+                    {/* Background image container with transition */}
+                    <div 
+                      className="absolute inset-0 z-0 bg-cover bg-center transition-transform duration-700 ease-out scale-100 group-hover:scale-110"
+                      style={{
+                        backgroundImage: `url(${bgImage})`
+                      }}
+                    />
+                    {/* Dark gradient overlay */}
+                    <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/95 via-black/60 to-black/35" />
 
-                      {/* Destination and period */}
-                      <div className="flex items-center gap-1.5 text-gray-500 text-xs mb-3">
-                        <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                        <span className="truncate">{trip.destination}</span>
-                      </div>
-
-                      <p className="text-gray-600 text-xs line-clamp-2 mb-4 h-8">{trip.description || "Sem descrição."}</p>
-
-                      {/* Travel meta icons */}
-                      <div className="grid grid-cols-3 gap-2 border-t border-b border-gray-50 py-3 mb-4 text-xs text-gray-500">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                          <span>{totalDays} {totalDays === 1 ? "Dia" : "Dias"}</span>
+                    {/* Content */}
+                    <div className="relative z-20 flex flex-col justify-between h-full flex-1 p-5 md:p-6">
+                      <div>
+                        {/* Name & status tag */}
+                        <div className="flex justify-between items-start gap-2 mb-2">
+                          <h4 className="text-lg md:text-xl font-extrabold text-white group-hover:text-indigo-200 transition-colors line-clamp-1 drop-shadow-sm">{trip.name}</h4>
+                          <span className={`text-[10px] px-2 py-0.5 font-bold rounded-full ${
+                            trip.status === "active" 
+                              ? "bg-emerald-500/90 text-white border border-emerald-400" 
+                              : "bg-gray-700/90 text-gray-200 border border-gray-600"
+                          }`}>
+                            {trip.status === "active" ? "Ativa" : "Arquivada"}
+                          </span>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Users className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                          <span>{trip.participants.length} Part.</span>
+
+                        {/* Destination and period */}
+                        <div className="flex items-center gap-1.5 text-gray-200 text-xs mb-3 font-semibold drop-shadow-sm">
+                          <MapPin className="w-3.5 h-3.5 text-indigo-300 shrink-0" />
+                          <span className="truncate">{trip.destination}</span>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Car className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                          <span className="truncate">{trip.vehicle ? trip.vehicle.name : "Nenhum"}</span>
+
+                        <p className="text-gray-300 text-xs line-clamp-2 mb-4 h-8 leading-relaxed font-normal">{trip.description || "Sem descrição."}</p>
+
+                        {/* Travel meta icons */}
+                        <div className="grid grid-cols-3 gap-2 border-t border-b border-white/10 py-3 mb-4 text-xs text-gray-200 font-medium">
+                          <div className="flex items-center gap-1.5">
+                            <Calendar className="w-4 h-4 text-indigo-300 shrink-0" />
+                            <span>{totalDays} {totalDays === 1 ? "Dia" : "Dias"}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5" title={`${trip.numAdults || 2} Adultos, ${trip.numChildren || 0} Crianças, ${trip.numBabies || 0} Bebés`}>
+                            <Users className="w-4 h-4 text-indigo-300 shrink-0" />
+                            <span>
+                              {((trip.numAdults || 0) + (trip.numChildren || 0) + (trip.numBabies || 0)) || 2} {(((trip.numAdults || 0) + (trip.numChildren || 0) + (trip.numBabies || 0)) || 2) === 1 ? "Pessoa" : "Pessoas"}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <Car className="w-4 h-4 text-indigo-300 shrink-0" />
+                            <span className="truncate">{trip.vehicle ? trip.vehicle.name : "Nenhum"}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Bottom actions */}
-                    <div className="flex items-center justify-between gap-3 pt-2">
-                      <div className="flex items-center gap-1">
-                        {/* Duplicate */}
-                        {activeUser.role === "Planeador" && (
-                          <button
-                            onClick={() => onDuplicateTrip(trip.id)}
-                            title="Duplicar Viagem"
-                            className="p-2 bg-gray-50 hover:bg-gray-100 text-gray-500 rounded-xl hover:text-indigo-600 transition-all"
-                          >
-                            <Copy className="w-4 h-4" />
-                          </button>
-                        )}
-                        
-                        {/* Archive / Restore */}
-                        {activeUser.role === "Planeador" && (
-                          <button
-                            onClick={() => onToggleArchive(trip.id)}
-                            title={trip.status === "active" ? "Arquivar Viagem" : "Restaurar Viagem"}
-                            className="p-2 bg-gray-50 hover:bg-gray-100 text-gray-500 rounded-xl hover:text-amber-600 transition-all"
-                          >
-                            <Archive className="w-4 h-4" />
-                          </button>
-                        )}
+                      {/* Bottom actions */}
+                      <div className="flex items-center justify-between gap-3 pt-2">
+                        <div className="flex items-center gap-1.5">
+                          {/* Duplicate */}
+                          {activeUser.role === "Planeador" && (
+                            <button
+                              onClick={() => onDuplicateTrip(trip.id)}
+                              title="Duplicar Viagem"
+                              className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-all"
+                            >
+                              <Copy className="w-4 h-4" />
+                            </button>
+                          )}
+                          
+                          {/* Archive / Restore */}
+                          {activeUser.role === "Planeador" && (
+                            <button
+                              onClick={() => onToggleArchive(trip.id)}
+                              title={trip.status === "active" ? "Arquivar Viagem" : "Restaurar Viagem"}
+                              className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-all"
+                            >
+                              <Archive className="w-4 h-4" />
+                            </button>
+                          )}
 
-                        {/* Delete */}
-                        {activeUser.role === "Planeador" && (
-                          <button
-                            onClick={() => {
-                              if (confirm(`Pretende mesmo eliminar a viagem "${trip.name}"? Esta ação é irreversível.`)) {
-                                onDeleteTrip(trip.id);
-                              }
-                            }}
-                            title="Eliminar Viagem"
-                            className="p-2 bg-gray-50 hover:bg-red-50 text-gray-500 hover:text-red-600 rounded-xl transition-all"
-                          >
-                            <Trash className="w-4 h-4" />
-                          </button>
-                        )}
+                          {/* Delete */}
+                          {activeUser.role === "Planeador" && (
+                            <button
+                              onClick={() => {
+                                if (confirm(`Pretende mesmo eliminar a viagem "${trip.name}"? Esta ação é irreversível.`)) {
+                                  onDeleteTrip(trip.id);
+                                }
+                              }}
+                              title="Eliminar Viagem"
+                              className="p-2 bg-white/10 hover:bg-red-600/30 text-white hover:text-red-200 rounded-xl transition-all"
+                            >
+                              <Trash className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+
+                        <button
+                          onClick={() => onSelectTrip(trip)}
+                          className="flex items-center gap-1.5 bg-indigo-600 group-hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-md shadow-indigo-950/40"
+                        >
+                          Abrir Viagem
+                          <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                        </button>
                       </div>
-
-                      <button
-                        onClick={() => onSelectTrip(trip)}
-                        className="flex items-center gap-1.5 bg-indigo-50 group-hover:bg-indigo-600 text-indigo-600 group-hover:text-white text-xs font-semibold px-4 py-2 rounded-xl transition-all shadow-sm"
-                      >
-                        Abrir Viagem
-                        <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
-                      </button>
                     </div>
                   </div>
                 );
@@ -839,7 +942,8 @@ export default function Dashboard({
           initialLng={undefined}
           onSelect={(lat, lng, addr) => {
             if (addr) {
-              setAccommodationAddress(addr);
+              const cleanAddr = cleanAddressDisplay(addr || accommodationAddress);
+              setAccommodationAddress(`${cleanAddr} (GPS: ${lat},${lng})`);
             }
             setAccommodationMapLink(`https://www.google.com/maps?q=${lat},${lng}`);
             setShowAccommodationMapPicker(false);
@@ -854,7 +958,8 @@ export default function Dashboard({
           initialLng={undefined}
           onSelect={(lat, lng, addr) => {
             if (addr) {
-              setHomeAddress(addr);
+              const cleanAddr = cleanAddressDisplay(addr || homeAddress);
+              setHomeAddress(`${cleanAddr} (GPS: ${lat},${lng})`);
             }
             setShowHomeMapPicker(false);
           }}
