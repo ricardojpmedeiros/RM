@@ -6,58 +6,77 @@ function isUUID(str: any): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 }
 
+// Helper functions to handle transportType persistence across database schemas
+function extractTransportType(act: any): string | undefined {
+  if (act.transport_type) return act.transport_type;
+  if (act.transportType) return act.transportType;
+  if (act.notes && act.notes.includes("[TransportMode:")) {
+    const match = act.notes.match(/\[TransportMode:\s*([^\]]+)\]/);
+    if (match) return match[1].trim();
+  }
+  return undefined;
+}
+
+function cleanNotes(notes?: string): string {
+  if (!notes) return "";
+  return notes.replace(/\[TransportMode:\s*[^\]]+\]/g, "").trim();
+}
+
+function embedTransportInNotes(notes?: string, transportType?: string): string {
+  const base = cleanNotes(notes);
+  if (!transportType) return base;
+  return base ? `${base} [TransportMode: ${transportType}]` : `[TransportMode: ${transportType}]`;
+}
+
 export const tripService = {
   // 1. Fetch all trips where the user is a participant
   async fetchAllTrips(): Promise<Trip[]> {
-    if (!isSupabaseConfigured) {
+    if (isSupabaseConfigured) {
       try {
-        const resp = await fetch("/api/trips");
-        if (!resp.ok) throw new Error("HTTP error " + resp.status);
-        const data = await resp.json();
-        return data;
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          // Get trip IDs that user is a member of
+          const { data: memberships, error: memError } = await supabase
+            .from("trip_members")
+            .select("trip_id, role")
+            .eq("user_id", user.id);
+
+          if (!memError && memberships && memberships.length > 0) {
+            const tripIds = memberships.map(m => m.trip_id);
+
+            // Fetch the trip rows
+            const { data: tripRows, error: tripError } = await supabase
+              .from("trips")
+              .select("*")
+              .in("id", tripIds)
+              .order("created_at", { ascending: false });
+
+            if (!tripError && tripRows) {
+              const compiledTrips: Trip[] = [];
+              for (const row of tripRows) {
+                const trip = await this.assembleTrip(row);
+                if (trip) {
+                  compiledTrips.push(trip);
+                }
+              }
+              return compiledTrips;
+            }
+          }
+        }
       } catch (err) {
-        console.error("Local fetchAllTrips failed:", err);
-        return [];
+        console.warn("Supabase fetchAllTrips network error, falling back to local backend:", err);
       }
     }
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return [];
-
-    // Get trip IDs that user is a member of
-    const { data: memberships, error: memError } = await supabase
-      .from("trip_members")
-      .select("trip_id, role")
-      .eq("user_id", user.id);
-
-    if (memError || !memberships || memberships.length === 0) {
+    try {
+      const resp = await fetch("/api/trips");
+      if (!resp.ok) throw new Error("HTTP error " + resp.status);
+      const data = await resp.json();
+      return data;
+    } catch (err) {
+      console.error("Local fetchAllTrips failed:", err);
       return [];
     }
-
-    const tripIds = memberships.map(m => m.trip_id);
-
-    // Fetch the trip rows
-    const { data: tripRows, error: tripError } = await supabase
-      .from("trips")
-      .select("*")
-      .in("id", tripIds)
-      .order("created_at", { ascending: false });
-
-    if (tripError || !tripRows) {
-      console.error("Error loading trips:", tripError);
-      return [];
-    }
-
-    const compiledTrips: Trip[] = [];
-
-    for (const row of tripRows) {
-      const trip = await this.assembleTrip(row);
-      if (trip) {
-        compiledTrips.push(trip);
-      }
-    }
-
-    return compiledTrips;
   },
 
   // Helper to assemble full Trip object with its relations
@@ -116,6 +135,10 @@ export const tripService = {
             itinerary[dayDate] = [];
           }
 
+          const rawNotes = act.notes || "";
+          const transportType = extractTransportType(act);
+          const displayNotes = cleanNotes(rawNotes);
+
           itinerary[dayDate].push({
             id: act.id,
             timeStart: act.start_time || "12:00",
@@ -129,7 +152,8 @@ export const tripService = {
             googleMapsLink: act.google_maps_link || "",
             wazeLink: act.waze_link || "",
             image: act.image_url || "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80",
-            notes: act.notes || ""
+            notes: displayNotes,
+            transportType: transportType
           });
         }
       }
@@ -449,7 +473,8 @@ export const tripService = {
           google_maps_link: evt.googleMapsLink,
           waze_link: evt.wazeLink,
           image_url: evt.image,
-          notes: evt.notes,
+          notes: embedTransportInNotes(evt.notes, evt.transportType),
+          transport_type: evt.transportType || null,
           activity_order: idx + 1
         });
       });

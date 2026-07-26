@@ -137,64 +137,65 @@ export const documentService = {
 
   // 2. Download / View via temporary signed URL
   async getSignedUrl(storagePath: string): Promise<string> {
-    if (!isSupabaseConfigured) {
-      // Return cached local blob URL or a placeholder
-      return localBlobUrls[storagePath] || "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80";
+    if (isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase.storage
+          .from("trip-documents")
+          .createSignedUrl(storagePath, 3600); // 1 hour validity
+
+        if (!error && data?.signedUrl) {
+          return data.signedUrl;
+        }
+      } catch (err) {
+        console.warn("getSignedUrl network error, using local fallback:", err);
+      }
     }
 
-    const { data, error } = await supabase.storage
-      .from("trip-documents")
-      .createSignedUrl(storagePath, 3600); // 1 hour validity
-
-    if (error || !data) {
-      console.error("Error creating signed URL:", error);
-      throw new Error(`Não foi possível gerar a ligação de acesso ao documento: ${error?.message}`);
-    }
-
-    return data.signedUrl;
+    return localBlobUrls[storagePath] || "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80";
   },
 
   // 3. Delete document (removes from storage and database)
   async deleteDocument(docId: string, storagePath: string): Promise<void> {
-    if (!isSupabaseConfigured) {
-      // Clean up local blob URL
-      const blobUrl = localBlobUrls[storagePath];
-      if (blobUrl) {
-        try { URL.revokeObjectURL(blobUrl); } catch {}
-        delete localBlobUrls[storagePath];
-      }
+    if (isSupabaseConfigured) {
+      try {
+        // 1. Delete from Supabase Storage
+        const { error: storageErr } = await supabase.storage
+          .from("trip-documents")
+          .remove([storagePath]);
 
-      // Delete from Express backend
-      const tripId = storagePath.split("/")[0];
-      if (tripId) {
-        try {
-          await fetch(`/api/trips/${tripId}/documents/${docId}`, {
-            method: "DELETE"
-          });
-        } catch (err) {
-          console.error("Local deleteDocument failed:", err);
+        if (storageErr) {
+          console.warn("Storage deletion warning or failure:", storageErr);
         }
+
+        // 2. Delete database record
+        const { error: dbErr } = await supabase
+          .from("documents")
+          .delete()
+          .eq("id", docId);
+
+        if (!dbErr) return;
+      } catch (err) {
+        console.warn("deleteDocument network error, using local fallback:", err);
       }
-      return;
     }
 
-    // 1. Delete from Supabase Storage
-    const { error: storageErr } = await supabase.storage
-      .from("trip-documents")
-      .remove([storagePath]);
-
-    if (storageErr) {
-      console.warn("Storage deletion warning or failure:", storageErr);
+    // Clean up local blob URL
+    const blobUrl = localBlobUrls[storagePath];
+    if (blobUrl) {
+      try { URL.revokeObjectURL(blobUrl); } catch {}
+      delete localBlobUrls[storagePath];
     }
 
-    // 2. Delete database record
-    const { error: dbErr } = await supabase
-      .from("documents")
-      .delete()
-      .eq("id", docId);
-
-    if (dbErr) {
-      throw new Error(`Erro ao eliminar o registo do documento na base de dados: ${dbErr.message}`);
+    // Delete from Express backend
+    const tripId = storagePath.split("/")[0];
+    if (tripId) {
+      try {
+        await fetch(`/api/trips/${tripId}/documents/${docId}`, {
+          method: "DELETE"
+        });
+      } catch (err) {
+        console.error("Local deleteDocument failed:", err);
+      }
     }
   }
 };

@@ -78,82 +78,82 @@ export const invitationService = {
 
   // 2. Fetch invitations for a trip
   async fetchInvitations(tripId: string): Promise<TripInvitation[]> {
-    if (!isSupabaseConfigured) {
-      const current = localStorage.getItem("trippilot_mock_invitations");
-      const list: TripInvitation[] = current ? JSON.parse(current) : [];
-      return list.filter(inv => inv.trip_id === tripId && inv.status === "pending");
+    if (isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from("trip_invitations")
+          .select("*")
+          .eq("trip_id", tripId)
+          .order("created_at", { ascending: false });
+
+        if (!error && data) {
+          return data as TripInvitation[];
+        }
+      } catch (err) {
+        console.warn("fetchInvitations network error:", err);
+      }
     }
 
-    const { data, error } = await supabase
-      .from("trip_invitations")
-      .select("*")
-      .eq("trip_id", tripId)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("Error fetching invitations:", error);
-      return [];
-    }
-
-    return data as TripInvitation[];
+    const current = localStorage.getItem("trippilot_mock_invitations");
+    const list: TripInvitation[] = current ? JSON.parse(current) : [];
+    return list.filter(inv => inv.trip_id === tripId && inv.status === "pending");
   },
 
   // 3. Cancel an invitation
   async cancelInvitation(invitationId: string): Promise<void> {
-    if (!isSupabaseConfigured) {
-      const current = localStorage.getItem("trippilot_mock_invitations");
-      const list: any[] = current ? JSON.parse(current) : [];
-      const matched = list.find(inv => inv.id === invitationId);
-      if (matched) {
-        matched.status = "cancelled";
+    if (isSupabaseConfigured) {
+      try {
+        const { error } = await supabase
+          .from("trip_invitations")
+          .update({
+            status: "cancelled",
+            cancelled_at: new Date().toISOString()
+          })
+          .eq("id", invitationId);
+
+        if (!error) return;
+      } catch (err) {
+        console.warn("cancelInvitation network error:", err);
       }
-      localStorage.setItem("trippilot_mock_invitations", JSON.stringify(list));
-      return;
     }
 
-    const { error } = await supabase
-      .from("trip_invitations")
-      .update({
-        status: "cancelled",
-        cancelled_at: new Date().toISOString()
-      })
-      .eq("id", invitationId);
-
-    if (error) {
-      throw new Error(error.message);
+    const current = localStorage.getItem("trippilot_mock_invitations");
+    const list: any[] = current ? JSON.parse(current) : [];
+    const matched = list.find(inv => inv.id === invitationId);
+    if (matched) {
+      matched.status = "cancelled";
     }
+    localStorage.setItem("trippilot_mock_invitations", JSON.stringify(list));
   },
 
   // 4. Fetch invitation details securely using token (for non-authenticated views)
   async fetchInvitationByToken(token: string) {
-    if (!isSupabaseConfigured) {
-      const current = localStorage.getItem("trippilot_mock_invitations");
-      const list: any[] = current ? JSON.parse(current) : [];
-      const matched = list.find(inv => inv.token === token && inv.status === "pending");
-      if (!matched) return null;
-      if (new Date(matched.expires_at) < new Date()) return null;
-      return { ...matched, trips: { title: "Viagem Simulada" } };
+    if (isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from("trip_invitations")
+          .select("*, trips(title)")
+          .eq("token", token)
+          .eq("status", "pending")
+          .single();
+
+        if (!error && data) {
+          const now = new Date();
+          if (new Date(data.expires_at) >= now) {
+            return data;
+          }
+        }
+      } catch (err) {
+        console.warn("fetchInvitationByToken network error:", err);
+      }
     }
 
-    const { data, error } = await supabase
-      .from("trip_invitations")
-      .select("*, trips(title)")
-      .eq("token", token)
-      .eq("status", "pending")
-      .single();
-
-    if (error) {
-      console.error("Error checking token:", error);
-      return null;
-    }
-
-    // Check expiration
-    const now = new Date();
-    if (new Date(data.expires_at) < now) {
-      return null;
-    }
-
-    return data;
+    const current = localStorage.getItem("trippilot_mock_invitations");
+    const list: any[] = current ? JSON.parse(current) : [];
+    const matched = list.find(inv => inv.token === token && inv.status === "pending");
+    if (!matched) return null;
+    if (new Date(matched.expires_at) < new Date()) return null;
+    return { ...matched, trips: { title: "Viagem Simulada" } };
   },
 
   // 5. Accept trip invitation via SQL RPC transaction

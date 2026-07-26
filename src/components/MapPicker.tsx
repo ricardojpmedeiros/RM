@@ -417,14 +417,16 @@ export default function MapPicker({
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(osmQuery)}&limit=5`,
         { headers: { "Accept-Language": "pt-PT,pt;q=0.9" } }
       );
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
       const data = await resp.json();
-      if (data && data.length > 0) {
+      if (data && Array.isArray(data) && data.length > 0) {
         setOsmResults(data);
       } else {
         alert("Nenhum local encontrado. Tente ser mais específico.");
       }
     } catch (err) {
-      console.error(err);
+      console.warn("OpenStreetMap search network error:", err);
+      alert("Não foi possível ligar ao serviço de pesquisa de mapas. Verifique a sua ligação ou cole um link direto do Google Maps.");
     } finally {
       setOsmSearching(false);
     }

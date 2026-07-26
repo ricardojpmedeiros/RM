@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Trip, UserProfile, Event, Expense, Document, SmartRecommendation, Vehicle } from "../types";
+import { Trip, UserProfile, Event, Expense, Document, SmartRecommendation, Vehicle, Flight } from "../types";
 import { documentService } from "../services/documentService";
 import { invitationService, TripInvitation } from "../services/invitationService";
 import { 
@@ -88,6 +88,63 @@ const getBatteryOrFuelEstimate = (distanceStr?: string, vehicle?: Vehicle | null
   }
 };
 
+export const inferTransportFromCategoryOrName = (category?: string, name?: string, address?: string): string => {
+  const text = `${category || ""} ${name || ""} ${address || ""}`.toLowerCase();
+  if (
+    category === "Voo" ||
+    text.includes("aeroporto") ||
+    text.includes("airport") ||
+    text.includes("voo") ||
+    text.includes("flight") ||
+    text.includes("aviao") ||
+    text.includes("avião")
+  ) {
+    return "Avião";
+  }
+  if (
+    category === "Comboio" ||
+    text.includes("comboio") ||
+    text.includes("estação de comboios") ||
+    text.includes("train") ||
+    text.includes("tgv")
+  ) {
+    return "Comboio";
+  }
+  if (
+    category === "Metro" ||
+    text.includes("metro") ||
+    text.includes("estação de metro") ||
+    text.includes("subway")
+  ) {
+    return "Metro";
+  }
+  if (
+    category === "Barco" ||
+    text.includes("barco") ||
+    text.includes("ferry") ||
+    text.includes("cais") ||
+    text.includes("cruzeiro") ||
+    text.includes("porto de abrigo")
+  ) {
+    return "Barco";
+  }
+  if (
+    category === "Caminhada" ||
+    text.includes("a pé") ||
+    text.includes("trilho") ||
+    text.includes("caminhada")
+  ) {
+    return "A pé";
+  }
+  if (text.includes("bicicleta") || text.includes("ciclovia")) {
+    return "Bicicleta";
+  }
+  if (text.includes("trotinete")) {
+    return "Trotinete Elétrica (20Km máx)";
+  }
+  return "Carro";
+};
+
 const getTransportStats = (distance: number, mode: string) => {
   let speed = 50; // km/h
   let cost = 0;
@@ -130,8 +187,9 @@ const getTransportStats = (distance: number, mode: string) => {
       break;
     case "Avião":
       speed = 650;
-      durationMin = (distance / speed) * 60 + 120; // +2 horas de antecedência/aeroporto
-      cost = 45 + (distance * 0.12);
+      // Minimum 1h30 (90 min) for airport process + flight duration
+      durationMin = Math.max(90, (distance / speed) * 60 + 75);
+      cost = Math.max(35, 35 + (distance * 0.08));
       break;
     case "Barco":
       speed = 25;
@@ -152,6 +210,14 @@ const getTransportStats = (distance: number, mode: string) => {
     durationStr = mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
   } else {
     durationStr = `${Math.ceil(durationMin)} min`;
+  }
+
+  if (mode === "Avião" && distance > 0) {
+    const airMin = Math.round((distance / 650) * 60);
+    const airH = Math.floor(airMin / 60);
+    const airM = airMin % 60;
+    const airStr = airM > 0 ? `${airH}h ${airM}m` : `${airH}h`;
+    durationStr = `Voo: ${airStr} (${durationStr} total c/ aeroporto) • Fuso: +1h no destino`;
   }
 
   return {
@@ -278,12 +344,18 @@ export default function TripDetails({
   const [showAccommodationMapPicker, setShowAccommodationMapPicker] = useState(false);
   const [showHomeMapPicker, setShowHomeMapPicker] = useState(false);
   const [evtCategory, setEvtCategory] = useState("Atividade livre");
+  const [evtTransportType, setEvtTransportType] = useState<string>("Carro");
   const [evtDescription, setEvtDescription] = useState("");
   const [evtAddress, setEvtAddress] = useState("");
   const [evtLat, setEvtLat] = useState("");
   const [evtLng, setEvtLng] = useState("");
   const [evtNotes, setEvtNotes] = useState("");
   const [evtImage, setEvtImage] = useState("");
+
+  // Event deletion confirmation modal state
+  const [deleteConfirmEvent, setDeleteConfirmEvent] = useState<{ id: string; name: string } | null>(null);
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState("");
+  const [deleteErrorMsg, setDeleteErrorMsg] = useState("");
 
   // Expense manual form
   const [showExpenseForm, setShowExpenseForm] = useState(false);
@@ -325,6 +397,9 @@ export default function TripDetails({
   const [flightAirline, setFlightAirline] = useState("");
   const [flightDep, setFlightDep] = useState("");
   const [flightArr, setFlightArr] = useState("");
+  const [flightDepTime, setFlightDepTime] = useState("10:00");
+  const [flightArrTime, setFlightArrTime] = useState("13:15");
+  const [flightTzOffset, setFlightTzOffset] = useState<number>(1); // Default +1h (Destino tem +1h de fuso vs Origem)
   const [flightDate, setFlightDate] = useState(trip.startDate);
   const [flightPassengers, setFlightPassengers] = useState<number | "">(1);
   const [flightPrice, setFlightPrice] = useState<number | "">(50);
@@ -509,8 +584,10 @@ export default function TripDetails({
           date: selectedDate || dates[0]
         })
       });
-      const data = await resp.json();
-      setRecommendations(data);
+      if (resp.ok) {
+        const data = await resp.json();
+        setRecommendations(data);
+      }
     } catch (err) {
       console.error("Error loading smart recs:", err);
     } finally {
@@ -556,6 +633,11 @@ export default function TripDetails({
             mimeType: file.type
           })
         });
+        if (!resp.ok) {
+          alert("Não foi possível conectar ao serviço de leitura de faturas.");
+          setOcrLoading(false);
+          return;
+        }
         const extracted = await resp.json();
         
         if (extracted.error) {
@@ -626,15 +708,15 @@ export default function TripDetails({
       let computedCost = 0;
       let computedError: string | null = null;
 
-      if (evt.transportType) {
-        const stats = getTransportStats(distanceKm, evt.transportType);
-        computedTime = stats.duration;
-        computedCost = stats.cost;
-        computedError = stats.error;
-      }
+      const effectiveTransport = evt.transportType || inferTransportFromCategoryOrName(evt.category, evt.name, evt.address);
+      const stats = getTransportStats(distanceKm, effectiveTransport);
+      computedTime = stats.duration;
+      computedCost = stats.cost;
+      computedError = stats.error;
 
       return {
         ...evt,
+        transportType: effectiveTransport,
         distanceFromPrev: distance,
         timeFromPrev: computedTime,
         transportCost: computedCost,
@@ -902,6 +984,11 @@ export default function TripDetails({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ draftText })
       });
+      if (!resp.ok) {
+        alert("Não foi possível analisar o rascunho de itinerário.");
+        setDraftParsing(false);
+        return;
+      }
       const data = await resp.json();
 
       if (data.error) {
@@ -958,6 +1045,7 @@ export default function TripDetails({
     if (!evtName) return;
 
     const coordinates = evtLat && evtLng ? { lat: Number(evtLat), lng: Number(evtLng) } : null;
+    const finalTransportType = evtTransportType || inferTransportFromCategoryOrName(evtCategory, evtName, evtAddress);
 
     const eventPayload: Partial<Event> = {
       name: evtName,
@@ -965,6 +1053,7 @@ export default function TripDetails({
       timeEnd: evtTimeEnd || undefined,
       duration: evtDuration || undefined,
       category: evtCategory,
+      transportType: finalTransportType,
       description: evtDescription,
       address: evtAddress,
       coordinates,
@@ -1013,6 +1102,7 @@ export default function TripDetails({
     setEvtLng("");
     setEvtNotes("");
     setEvtImage("");
+    setEvtTransportType("Carro");
   };
 
   const handleEditEventClick = (evt: Event) => {
@@ -1023,6 +1113,7 @@ export default function TripDetails({
     setEvtDuration(evt.duration || "");
     setEvtGoogleMapsLink(evt.googleMapsLink || "");
     setEvtCategory(evt.category);
+    setEvtTransportType(evt.transportType || inferTransportFromCategoryOrName(evt.category, evt.name, evt.address));
     setEvtDescription(evt.description);
     setEvtAddress(evt.address);
     setEvtLat(evt.coordinates ? String(evt.coordinates.lat) : "");
@@ -1032,15 +1123,46 @@ export default function TripDetails({
     setShowEventModal(true);
   };
 
-  const handleDeleteEvent = (id: string) => {
-    if (!confirm("Pretende eliminar este evento do itinerário?")) return;
+  const requestDeleteEvent = (evt: { id: string; name: string }) => {
+    setDeleteConfirmEvent(evt);
+    setDeleteConfirmInput("");
+    setDeleteErrorMsg("");
+  };
+
+  const handleDeleteEvent = (id: string, name?: string) => {
+    requestDeleteEvent({ id, name: name || "este evento" });
+  };
+
+  const executeDeleteEvent = () => {
+    if (!deleteConfirmEvent) return;
+
+    if (deleteConfirmInput.trim() !== "SIM") {
+      setDeleteErrorMsg("Decisão invalidada! É obrigatório escrever exatamente 'SIM' (em maiúsculas) para confirmar a eliminação.");
+      return;
+    }
+
+    const eventId = deleteConfirmEvent.id;
     const updatedItinerary = { ...trip.itinerary };
-    updatedItinerary[selectedDate] = updatedItinerary[selectedDate].filter(e => e.id !== id);
+
+    // Remove event across all dates in itinerary
+    for (const dateKey of Object.keys(updatedItinerary)) {
+      if (Array.isArray(updatedItinerary[dateKey])) {
+        updatedItinerary[dateKey] = updatedItinerary[dateKey].filter(e => e.id !== eventId);
+      }
+    }
 
     onUpdateTrip({
       ...trip,
       itinerary: updatedItinerary
     });
+
+    setDeleteConfirmEvent(null);
+    setDeleteConfirmInput("");
+    setDeleteErrorMsg("");
+
+    if (showEventModal && editingEventId === eventId) {
+      setShowEventModal(false);
+    }
   };
 
   const handleUpdateEventTransport = (eventId: string, transportType: string) => {
@@ -1089,16 +1211,43 @@ export default function TripDetails({
     setExpSupplier("");
   };
 
+  // Helper to calculate real airborne flight duration in minutes given departure local time, arrival local time and timezone offset
+  const computeFlightAirMinutes = (depTime: string, arrTime: string, tzOffset: number = 1): number => {
+    if (!depTime || !arrTime) return 0;
+    const [dH, dM] = depTime.split(":").map(Number);
+    const [aH, aM] = arrTime.split(":").map(Number);
+    if (isNaN(dH) || isNaN(dM) || isNaN(aH) || isNaN(aM)) return 0;
+
+    const depTotal = dH * 60 + dM;
+    let arrTotal = aH * 60 + aM;
+
+    // Convert arrival local clock time to origin local clock time by subtracting timezone offset
+    arrTotal = arrTotal - (tzOffset * 60);
+
+    // Overnight flight handler
+    if (arrTotal < depTotal) {
+      arrTotal += 24 * 60;
+    }
+
+    return Math.max(0, arrTotal - depTotal);
+  };
+
   // Handle Flights submit
   const handleFlightSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!flightNo || !flightAirline) return;
 
-    const newFlight = {
+    const realDurationMin = computeFlightAirMinutes(flightDepTime, flightArrTime, flightTzOffset);
+
+    const newFlight: Flight = {
       flightNo,
       airline: flightAirline,
       departure: flightDep,
       arrival: flightArr,
+      departureTime: flightDepTime,
+      arrivalTime: flightArrTime,
+      timezoneOffsetHours: flightTzOffset,
+      flightDurationMinutes: realDurationMin,
       date: flightDate,
       passengers: Number(flightPassengers),
       pricePerPassenger: Number(flightPrice),
@@ -1769,8 +1918,8 @@ export default function TripDetails({
                               </>
                             )}
                             
-                            {/* Vehicle consumption, only if "Carro" (or default/undefined representing Carro) is active */}
-                            {trip.vehicle && (!evt.transportType || evt.transportType === "Carro") && (
+                            {/* Vehicle consumption, only if "Carro" is active */}
+                            {trip.vehicle && evt.transportType === "Carro" && (
                               <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100 flex items-center gap-1">
                                 {trip.vehicle.type === "electric" ? (
                                   <BatteryCharging className="w-3.5 h-3.5 text-emerald-500" />
@@ -1783,7 +1932,15 @@ export default function TripDetails({
                           </div>
 
                           {evt.transportType && (
-                            <span className="bg-indigo-600 text-white font-bold px-2.5 py-0.5 rounded-full text-[10px] uppercase tracking-wider">
+                            <span className="bg-indigo-600 text-white font-bold px-2.5 py-0.5 rounded-full text-[10px] uppercase tracking-wider flex items-center gap-1">
+                              {evt.transportType === "Avião" && <Plane className="w-3 h-3" />}
+                              {evt.transportType === "Carro" && <Car className="w-3 h-3" />}
+                              {evt.transportType === "Comboio" && <Train className="w-3 h-3" />}
+                              {evt.transportType === "Metro" && <Train className="w-3 h-3" />}
+                              {evt.transportType === "Barco" && <Ship className="w-3 h-3" />}
+                              {evt.transportType === "A pé" && <Footprints className="w-3 h-3" />}
+                              {evt.transportType === "Bicicleta" && <Bike className="w-3 h-3" />}
+                              {evt.transportType === "Trotinete Elétrica (20Km máx)" && <Sparkles className="w-3 h-3" />}
                               {evt.transportType}
                             </span>
                           )}
@@ -1803,7 +1960,7 @@ export default function TripDetails({
                               { label: "Avião", value: "Avião", icon: Plane },
                               { label: "Barco", value: "Barco", icon: Ship }
                             ].map((mode) => {
-                              const isActive = evt.transportType === mode.value || (!evt.transportType && mode.value === "Carro");
+                              const isActive = evt.transportType === mode.value;
                               const IconComp = mode.icon;
                               return (
                                 <button
@@ -1811,7 +1968,7 @@ export default function TripDetails({
                                   onClick={() => handleUpdateEventTransport(evt.id, mode.value)}
                                   className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border transition-all text-[11px] font-semibold ${
                                     isActive
-                                      ? "bg-indigo-600 border-indigo-600 text-white shadow-xs"
+                                      ? "bg-indigo-600 border-indigo-600 text-white shadow-xs ring-2 ring-indigo-200"
                                       : "bg-white border-gray-200 text-gray-700 hover:border-indigo-200 hover:bg-indigo-50/50"
                                   }`}
                                   title={mode.value}
@@ -1915,9 +2072,9 @@ export default function TripDetails({
                                   <Pencil className="w-3.5 h-3.5" />
                                 </button>
                                 <button 
-                                  onClick={() => handleDeleteEvent(evt.id)}
+                                  onClick={() => requestDeleteEvent({ id: evt.id, name: evt.name })}
                                   className="text-gray-400 hover:text-red-600 hover:bg-rose-50 p-2 rounded-lg transition-colors flex items-center justify-center min-w-[32px] min-h-[32px]"
-                                  title="Eliminar"
+                                  title="Eliminar evento"
                                 >
                                   <Trash className="w-3.5 h-3.5" />
                                 </button>
@@ -2406,59 +2563,180 @@ export default function TripDetails({
                     <p className="text-xs text-gray-400 italic">Nenhum voo associado.</p>
                   ) : (
                     <div className="space-y-2">
-                      {trip.flights.map((f, idx) => (
-                        <div key={idx} className="border border-gray-50 rounded-lg p-2.5 text-xs text-gray-600">
-                          <p className="font-bold text-gray-800">{f.flightNo} ({f.airline})</p>
-                          <p className="text-[10px] text-gray-400 mt-0.5">{f.departure} → {f.arrival} ({f.date})</p>
-                          <div className="flex justify-between items-center mt-1 text-[11px] font-semibold text-indigo-600 bg-indigo-50/50 px-1.5 py-0.5 rounded">
-                            <span>{f.passengers} pax x {f.pricePerPassenger}€</span>
-                            <span>Total: {f.totalPrice} €</span>
+                      {trip.flights.map((f, idx) => {
+                        const durMin = f.flightDurationMinutes || (f.departureTime && f.arrivalTime ? computeFlightAirMinutes(f.departureTime, f.arrivalTime, f.timezoneOffsetHours ?? 1) : null);
+                        const durHrs = durMin ? Math.floor(durMin / 60) : 0;
+                        const durMins = durMin ? Math.round(durMin % 60) : 0;
+                        const durStr = durMin ? (durMins > 0 ? `${durHrs}h ${durMins}m` : `${durHrs}h`) : null;
+
+                        return (
+                          <div key={idx} className="border border-gray-100 bg-gray-50/50 rounded-xl p-3 text-xs text-gray-600 space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <p className="font-bold text-gray-800 text-xs flex items-center gap-1.5">
+                                <Plane className="w-3.5 h-3.5 text-indigo-600" />
+                                <span>{f.flightNo} ({f.airline})</span>
+                              </p>
+                              <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
+                                {f.date}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center justify-between text-[11px] text-gray-700 font-medium bg-white p-2 rounded-lg border border-gray-100">
+                              <div>
+                                <span className="text-[10px] text-gray-400 block font-normal">Partida (Origem):</span>
+                                <span className="font-bold">{f.departure || "Origem"}</span> {f.departureTime && <span className="font-mono text-indigo-600 font-semibold">({f.departureTime})</span>}
+                              </div>
+                              <div className="text-center px-1">
+                                <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-full block border border-slate-200">
+                                  → {f.timezoneOffsetHours ? (f.timezoneOffsetHours > 0 ? `+${f.timezoneOffsetHours}h fuso` : `${f.timezoneOffsetHours}h fuso`) : "+1h fuso"} →
+                                </span>
+                                {durStr && (
+                                  <span className="text-[10px] font-extrabold text-emerald-700 block mt-0.5">
+                                    ⏱️ Voo: {durStr}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <span className="text-[10px] text-gray-400 block font-normal">Chegada (Destino):</span>
+                                <span className="font-bold">{f.arrival || "Destino"}</span> {f.arrivalTime && <span className="font-mono text-indigo-600 font-semibold">({f.arrivalTime})</span>}
+                              </div>
+                            </div>
+
+                            <div className="flex justify-between items-center text-[11px] font-semibold text-indigo-700 bg-indigo-50/70 px-2 py-1 rounded-lg">
+                              <span>{f.passengers} pax x {f.pricePerPassenger}€</span>
+                              <span>Total: {f.totalPrice} €</span>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
 
                   {showFlightForm && (
-                    <form onSubmit={handleFlightSubmit} className="space-y-2 border-t border-gray-50 pt-3 text-xs">
-                      <div className="grid grid-cols-2 gap-2">
-                        <input
-                          type="text" required placeholder="Nº Voo (ex: TP1482)"
-                          value={flightNo} onChange={(e) => setFlightNo(e.target.value)}
-                          className="px-2.5 py-1.5 border border-gray-200 rounded-lg"
-                        />
-                        <input
-                          type="text" required placeholder="Companhia Aérea"
-                          value={flightAirline} onChange={(e) => setFlightAirline(e.target.value)}
-                          className="px-2.5 py-1.5 border border-gray-200 rounded-lg"
-                        />
+                    <form onSubmit={handleFlightSubmit} className="space-y-2.5 border-t border-gray-100 pt-3 text-xs bg-indigo-50/30 p-3 rounded-xl border">
+                      <div className="flex items-center justify-between border-b border-indigo-100 pb-1.5">
+                        <span className="font-bold text-indigo-950 text-xs flex items-center gap-1">
+                          <Plane className="w-3.5 h-3.5 text-indigo-600" />
+                          <span>Adicionar Novo Voo</span>
+                        </span>
+                        <span className="text-[10px] text-indigo-600 bg-indigo-100/80 px-2 py-0.5 rounded-full font-bold">
+                          Com Fuso Horário
+                        </span>
                       </div>
+
                       <div className="grid grid-cols-2 gap-2">
-                        <input
-                          type="text" placeholder="Origem"
-                          value={flightDep} onChange={(e) => setFlightDep(e.target.value)}
-                          className="px-2.5 py-1.5 border border-gray-200 rounded-lg"
-                        />
-                        <input
-                          type="text" placeholder="Destino"
-                          value={flightArr} onChange={(e) => setFlightArr(e.target.value)}
-                          className="px-2.5 py-1.5 border border-gray-200 rounded-lg"
-                        />
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Nº do Voo</label>
+                          <input
+                            type="text" required placeholder="ex: SP120 / TP1482"
+                            value={flightNo} onChange={(e) => setFlightNo(e.target.value)}
+                            className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Companhia Aérea</label>
+                          <input
+                            type="text" required placeholder="ex: SATA / TAP"
+                            value={flightAirline} onChange={(e) => setFlightAirline(e.target.value)}
+                            className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg"
+                          />
+                        </div>
                       </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Aeroporto Origem</label>
+                          <input
+                            type="text" placeholder="ex: Ponta Delgada (PDL)"
+                            value={flightDep} onChange={(e) => setFlightDep(e.target.value)}
+                            className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Aeroporto Destino</label>
+                          <input
+                            type="text" placeholder="ex: Lisboa (LIS)"
+                            value={flightArr} onChange={(e) => setFlightArr(e.target.value)}
+                            className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg"
+                          />
+                        </div>
+                      </div>
+
                       <div className="grid grid-cols-3 gap-2">
-                        <input
-                          type="number" placeholder="Passageiros"
-                          value={flightPassengers} onChange={(e) => setFlightPassengers(e.target.value === "" ? "" : Number(e.target.value))}
-                          className="px-2 py-1.5 border border-gray-200 rounded-lg"
-                        />
-                        <input
-                          type="number" placeholder="Preço/pax"
-                          value={flightPrice} onChange={(e) => setFlightPrice(e.target.value === "" ? "" : Number(e.target.value))}
-                          className="px-2 py-1.5 border border-gray-200 rounded-lg"
-                        />
-                        <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg px-2 text-[10px]">
-                          Adicionar
-                        </button>
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Hora Partida (Origem)</label>
+                          <input
+                            type="time" required
+                            value={flightDepTime} onChange={(e) => setFlightDepTime(e.target.value)}
+                            className="w-full px-2 py-1.5 bg-white border border-gray-200 rounded-lg font-mono font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Hora Chegada (Destino)</label>
+                          <input
+                            type="time" required
+                            value={flightArrTime} onChange={(e) => setFlightArrTime(e.target.value)}
+                            className="w-full px-2 py-1.5 bg-white border border-gray-200 rounded-lg font-mono font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Diferença Fuso Destino</label>
+                          <select
+                            value={flightTzOffset} onChange={(e) => setFlightTzOffset(Number(e.target.value))}
+                            className="w-full px-1.5 py-1.5 bg-white border border-gray-200 rounded-lg font-bold text-[10px] text-indigo-900"
+                          >
+                            <option value={1}>+1h no Destino (ex: Açores UTC-1 → Lisboa UTC+0)</option>
+                            <option value={0}>0h (Mesmo Fuso Horário)</option>
+                            <option value={-1}>-1h no Destino</option>
+                            <option value={2}>+2h no Destino</option>
+                            <option value={-2}>-2h no Destino</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Live calculated flight duration preview */}
+                      {flightDepTime && flightArrTime && (
+                        <div className="p-2.5 bg-emerald-50/80 border border-emerald-200 rounded-xl text-[11px] text-emerald-950 flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            <span>
+                              <strong>Duração Efetiva do Voo:</strong>{" "}
+                              {(() => {
+                                const mins = computeFlightAirMinutes(flightDepTime, flightArrTime, flightTzOffset);
+                                const h = Math.floor(mins / 60);
+                                const m = Math.round(mins % 60);
+                                return m > 0 ? `${h}h ${m}m` : `${h}h`;
+                              })()}
+                            </span>
+                          </div>
+                          <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-200">
+                            Compensado com {flightTzOffset > 0 ? `+${flightTzOffset}h` : `${flightTzOffset}h`} fuso
+                          </span>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-3 gap-2 pt-1">
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Passageiros</label>
+                          <input
+                            type="number" placeholder="Passageiros"
+                            value={flightPassengers} onChange={(e) => setFlightPassengers(e.target.value === "" ? "" : Number(e.target.value))}
+                            className="w-full px-2 py-1.5 bg-white border border-gray-200 rounded-lg"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Preço/pax (€)</label>
+                          <input
+                            type="number" placeholder="Preço/pax"
+                            value={flightPrice} onChange={(e) => setFlightPrice(e.target.value === "" ? "" : Number(e.target.value))}
+                            className="w-full px-2 py-1.5 bg-white border border-gray-200 rounded-lg"
+                          />
+                        </div>
+                        <div className="flex items-end">
+                          <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg py-1.5 text-xs transition-colors shadow-xs">
+                            Adicionar Voo
+                          </button>
+                        </div>
                       </div>
                     </form>
                   )}
@@ -3483,7 +3761,13 @@ export default function TripDetails({
                 <div>
                   <label className="block font-bold text-gray-700 mb-1">Categoria</label>
                   <select
-                    value={evtCategory} onChange={(e) => setEvtCategory(e.target.value)}
+                    value={evtCategory}
+                    onChange={(e) => {
+                      const newCat = e.target.value;
+                      setEvtCategory(newCat);
+                      const inferred = inferTransportFromCategoryOrName(newCat, evtName, evtAddress);
+                      setEvtTransportType(inferred);
+                    }}
                     className="w-full px-2 py-1.5 bg-white border border-gray-300 rounded-lg text-base"
                   >
                     <option value="Voo">Voo</option>
@@ -3530,6 +3814,46 @@ export default function TripDetails({
                       className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs"
                     />
                   )}
+                </div>
+              </div>
+
+              {/* Meio de transporte da deslocação */}
+              <div className="bg-indigo-50/50 p-3 rounded-xl border border-indigo-100 space-y-2">
+                <label className="block font-bold text-indigo-950 text-xs flex items-center justify-between">
+                  <span>Meio de Transporte para esta Deslocação:</span>
+                  <span className="text-[10px] font-bold text-indigo-600 bg-white px-2.5 py-0.5 rounded-full border border-indigo-200 shadow-2xs">
+                    {evtTransportType}
+                  </span>
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                  {[
+                    { label: "Carro", value: "Carro", icon: Car },
+                    { label: "Avião", value: "Avião", icon: Plane },
+                    { label: "Comboio", value: "Comboio", icon: Train },
+                    { label: "Metro", value: "Metro", icon: Train },
+                    { label: "Barco", value: "Barco", icon: Ship },
+                    { label: "A pé", value: "A pé", icon: Footprints },
+                    { label: "Bicicleta", value: "Bicicleta", icon: Bike },
+                    { label: "Trotinete", value: "Trotinete Elétrica (20Km máx)", icon: Sparkles }
+                  ].map((m) => {
+                    const IconComp = m.icon;
+                    const isSelected = evtTransportType === m.value;
+                    return (
+                      <button
+                        key={m.value}
+                        type="button"
+                        onClick={() => setEvtTransportType(m.value)}
+                        className={`flex items-center gap-1.5 p-2 rounded-xl border text-[11px] font-semibold transition-all ${
+                          isSelected
+                            ? "bg-indigo-600 border-indigo-600 text-white shadow-xs ring-2 ring-indigo-200"
+                            : "bg-white border-gray-200 text-gray-700 hover:border-indigo-200 hover:bg-indigo-50"
+                        }`}
+                      >
+                        <IconComp className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">{m.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -3608,6 +3932,18 @@ export default function TripDetails({
               </div>
 
               <div className="flex gap-2.5 pt-2">
+                {editingEventId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      requestDeleteEvent({ id: editingEventId, name: evtName || "este evento" });
+                    }}
+                    className="px-3 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-lg text-xs border border-rose-200 flex items-center gap-1 transition-colors"
+                  >
+                    <Trash className="w-3.5 h-3.5" />
+                    Eliminar
+                  </button>
+                )}
                 <button
                   type="button" onClick={() => setShowEventModal(false)}
                   className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg text-xs"
@@ -4086,6 +4422,94 @@ export default function TripDetails({
                 >
                   <ArrowRightLeft className="w-4 h-4 text-amber-300" />
                   Confirmar Troca de Programação
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal with "SIM" Validation */}
+      {deleteConfirmEvent && (
+        <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-2xl w-full max-w-md overflow-hidden animate-scale-up">
+            <div className="bg-gradient-to-r from-red-600 to-rose-700 px-5 py-4 text-white flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <Trash className="w-5 h-5 text-white" />
+                <h3 className="font-bold text-base">Tem a certeza?</h3>
+              </div>
+              <button 
+                onClick={() => {
+                  setDeleteConfirmEvent(null);
+                  setDeleteConfirmInput("");
+                  setDeleteErrorMsg("");
+                }}
+                className="text-white/80 hover:text-white font-bold p-1 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 text-xs">
+              <div className="bg-rose-50 border border-rose-200 text-rose-900 rounded-xl p-3.5 space-y-1">
+                <p className="font-bold text-sm">Eliminar evento do itinerário</p>
+                <p className="text-xs text-rose-700 leading-relaxed">
+                  Esta ação é permanente e irreversível. O evento <strong className="font-bold text-rose-950">"{deleteConfirmEvent.name}"</strong> será removido do seu itinerário.
+                </p>
+              </div>
+
+              <div>
+                <label className="block font-bold text-gray-800 mb-1.5 text-xs">
+                  Para confirmar a eliminação, escreva <span className="text-red-600 font-extrabold text-sm">SIM</span> abaixo:
+                </label>
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="Escreva SIM aqui..."
+                  value={deleteConfirmInput}
+                  onChange={(e) => {
+                    setDeleteConfirmInput(e.target.value);
+                    setDeleteErrorMsg("");
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      executeDeleteEvent();
+                    }
+                  }}
+                  className="w-full px-3 py-2 border-2 border-gray-300 rounded-xl text-sm font-bold text-gray-900 focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-200 transition-all uppercase"
+                />
+              </div>
+
+              {deleteErrorMsg && (
+                <div className="bg-red-100 border border-red-300 text-red-800 px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 animate-shake">
+                  <AlertTriangle className="w-4 h-4 shrink-0 text-red-600" />
+                  <span>{deleteErrorMsg}</span>
+                </div>
+              )}
+
+              <div className="flex gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeleteConfirmEvent(null);
+                    setDeleteConfirmInput("");
+                    setDeleteErrorMsg("");
+                  }}
+                  className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={executeDeleteEvent}
+                  className={`flex-1 py-2.5 font-bold rounded-xl text-xs shadow-xs transition-all ${
+                    deleteConfirmInput.trim() === "SIM"
+                      ? "bg-red-600 hover:bg-red-700 text-white cursor-pointer"
+                      : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                  }`}
+                >
+                  Confirmar Eliminação
                 </button>
               </div>
             </div>

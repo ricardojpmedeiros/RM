@@ -42,9 +42,14 @@ export const authService = {
     if (!isSupabaseConfigured) {
       return MOCK_USER;
     }
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error) return null;
-    return user;
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error) return null;
+      return user;
+    } catch (err) {
+      console.warn("getCurrentUser network error, falling back to local user:", err);
+      return MOCK_USER;
+    }
   },
 
   // Get profile data for a user
@@ -63,17 +68,28 @@ export const authService = {
       };
     }
 
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
 
-    if (error) {
-      console.error("Error fetching profile:", error);
-      return null;
+      if (error) {
+        console.error("Error fetching profile:", error);
+        return null;
+      }
+      return data;
+    } catch (err) {
+      console.warn("getProfile network error:", err);
+      return {
+        id: userId,
+        full_name: "Ricardo Medeiros",
+        avatar_url: null,
+        preferred_currency: "EUR",
+        preferred_language: "pt"
+      };
     }
-    return data;
   },
 
   // Update profile
