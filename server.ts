@@ -1023,20 +1023,38 @@ function fallbackParseDraft(text: string): any[] {
     let cleanedLine = line.trim();
     if (!cleanedLine) continue;
     
-    // Look for times like 09:00, 09h00, 9h00, 13:00, 13h, etc.
-    const timeRegex = /\b(\d{1,2})[h:](\d{2})?\b/;
-    const match = cleanedLine.match(timeRegex);
+    // Extract maps links if present
+    const mapUrlMatch = cleanedLine.match(/https?:\/\/(maps\.app\.goo\.gl|www\.google\.com\/maps|waze\.com)[^\s)]+/i);
+    const googleMapsLink = mapUrlMatch ? mapUrlMatch[0] : "";
+
+    // Look for time range e.g. "13:30H às 13:50H" or "18:15H – 18:30H"
+    const rangeRegex = /(\d{1,2})[h:](\d{2})?h?\s*(?:às|a|-|–|—)\s*(\d{1,2})[h:](\d{2})?h?/i;
+    const rangeMatch = cleanedLine.match(rangeRegex);
+
+    // Look for single time like "06:20H", "06:40H", "12:05H"
+    const singleRegex = /\b(\d{1,2})[h:](\d{2})?h?\b/i;
+    const singleMatch = cleanedLine.match(singleRegex);
     
     let timeStart = "10:00";
+    let timeEnd = "";
     let name = cleanedLine;
     
-    if (match) {
-      const hr = match[1].padStart(2, "0");
-      const min = match[2] ? match[2].padStart(2, "0") : "00";
+    if (rangeMatch) {
+      const h1 = rangeMatch[1].padStart(2, "0");
+      const m1 = rangeMatch[2] ? rangeMatch[2].padStart(2, "0") : "00";
+      timeStart = `${h1}:${m1}`;
+
+      const h2 = rangeMatch[3].padStart(2, "0");
+      const m2 = rangeMatch[4] ? rangeMatch[4].padStart(2, "0") : "00";
+      timeEnd = `${h2}:${m2}`;
+
+      name = cleanedLine.replace(rangeMatch[0], "").replace(/^\s*[-–—:;.]+\s*/, "").trim();
+    } else if (singleMatch) {
+      const hr = singleMatch[1].padStart(2, "0");
+      const min = singleMatch[2] ? singleMatch[2].padStart(2, "0") : "00";
       timeStart = `${hr}:${min}`;
       
-      // Clean up the name by removing the time string and common symbols
-      name = cleanedLine.replace(match[0], "").replace(/^\s*[-–—:;.]+\s*/, "").trim();
+      name = cleanedLine.replace(singleMatch[0], "").replace(/^\s*[-–—:;.]+\s*/, "").trim();
     }
     
     // Guess category from keywords
@@ -1046,19 +1064,20 @@ function fallbackParseDraft(text: string): any[] {
       category = "Restaurante";
     } else if (lowerLine.includes("praia") || lowerLine.includes("mar") || lowerLine.includes("areal") || lowerLine.includes("banho")) {
       category = "Praia";
-    } else if (lowerLine.includes("hotel") || lowerLine.includes("check-in") || lowerLine.includes("alojamento") || lowerLine.includes("dormida") || lowerLine.includes("estadia")) {
+    } else if (lowerLine.includes("hotel") || lowerLine.includes("check-in") || lowerLine.includes("alojamento") || lowerLine.includes("casa") || lowerLine.includes("estadia")) {
       category = "Hotel";
-    } else if (lowerLine.includes("viagem") || lowerLine.includes("partida") || lowerLine.includes("saída") || lowerLine.includes("deslocação") || lowerLine.includes("transfer") || lowerLine.includes("autoestrada")) {
+    } else if (lowerLine.includes("voo") || lowerLine.includes("viagem") || lowerLine.includes("partida") || lowerLine.includes("saída") || lowerLine.includes("deslocação") || lowerLine.includes("transfer") || lowerLine.includes("aeroporto")) {
       category = "Viagem / Na estrada";
-    } else if (lowerLine.includes("visitar") || lowerLine.includes("museu") || lowerLine.includes("monumento") || lowerLine.includes("exposição") || lowerLine.includes("castelo") || lowerLine.includes("fortaleza")) {
+    } else if (lowerLine.includes("rent-a-car") || lowerLine.includes("centauro") || lowerLine.includes("carro") || lowerLine.includes("aluguer")) {
+      category = "Rent-a-Car";
+    } else if (lowerLine.includes("visitar") || lowerLine.includes("museu") || lowerLine.includes("monumento") || lowerLine.includes("exposição") || lowerLine.includes("castelo")) {
       category = "Museu";
-    } else if (lowerLine.includes("miradouro") || lowerLine.includes("vista") || lowerLine.includes("pôr do sol") || lowerLine.includes("falésia")) {
+    } else if (lowerLine.includes("miradouro") || lowerLine.includes("vista") || lowerLine.includes("pôr do sol")) {
       category = "Miradouro";
-    } else if (lowerLine.includes("caminhada") || lowerLine.includes("trilho") || lowerLine.includes("passeio") || lowerLine.includes("explorar")) {
+    } else if (lowerLine.includes("compras") || lowerLine.includes("shopping") || lowerLine.includes("passeio") || lowerLine.includes("park") || lowerLine.includes("cais")) {
       category = "Passeio";
     }
     
-    // If the clean name is too short or empty, keep original line
     if (name.length < 3) {
       name = cleanedLine;
     }
@@ -1066,20 +1085,19 @@ function fallbackParseDraft(text: string): any[] {
     events.push({
       id: "evt-draft-" + Math.random().toString(36).substr(2, 9),
       timeStart,
-      timeEnd: "",
+      timeEnd,
       duration: "",
-      name: name.substring(0, 50) + (name.length > 50 ? "..." : ""),
-      description: `Ponto importado do rascunho: "${cleanedLine}"`,
+      name: name.substring(0, 60) + (name.length > 60 ? "..." : ""),
+      description: cleanedLine,
       category,
       address: "",
-      googleMapsLink: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}`,
+      googleMapsLink: googleMapsLink || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}`,
       wazeLink: `https://waze.com/ul?q=${encodeURIComponent(name)}`,
       image: "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80",
       notes: "Importado via rascunho de programa."
     });
   }
   
-  // Sort events by starting hour
   events.sort((a, b) => a.timeStart.localeCompare(b.timeStart));
   return events;
 }

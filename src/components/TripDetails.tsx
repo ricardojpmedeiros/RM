@@ -57,7 +57,12 @@ import {
   Plane,
   Ship,
   Footprints,
-  Train
+  Train,
+  ArrowRightLeft,
+  Globe,
+  Sun,
+  CloudRain,
+  Repeat
 } from "lucide-react";
 
 const cleanAddressDisplay = (addr: string) => {
@@ -234,6 +239,33 @@ export default function TripDetails({
   const dates = Object.keys(trip.itinerary).sort();
   const [selectedDate, setSelectedDate] = useState(dates[0] || "");
 
+  // Real-time clock & timezone engine
+  const [now, setNow] = useState(new Date());
+  const [selectedTz, setSelectedTz] = useState<"opo" | "pdl" | "device">("opo");
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Swap Days modal state
+  const [showSwapDaysModal, setShowSwapDaysModal] = useState(false);
+  const [swapDayA, setSwapDayA] = useState(dates[0] || "");
+  const [swapDayB, setSwapDayB] = useState(dates[1] || dates[0] || "");
+  const [swapNotification, setSwapNotification] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (dates.length >= 2) {
+      if (!swapDayA || !dates.includes(swapDayA)) setSwapDayA(dates[0]);
+      if (!swapDayB || !dates.includes(swapDayB)) setSwapDayB(dates[1]);
+    } else if (dates.length === 1) {
+      setSwapDayA(dates[0]);
+      setSwapDayB(dates[0]);
+    }
+  }, [dates]);
+
   // Event modal states
   const [showEventModal, setShowEventModal] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
@@ -390,6 +422,71 @@ export default function TripDetails({
   }, [trip.id, activeTab]);
 
   const isPlanner = activeUser.role === "Planeador";
+
+  // Timezone formatting helper
+  const getTimeString = (timeZone?: string) => {
+    try {
+      if (!timeZone) {
+        return now.toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      }
+      return now.toLocaleTimeString("pt-PT", { timeZone, hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    } catch {
+      return now.toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    }
+  };
+
+  const deviceTimeStr = getTimeString();
+  const azoresTimeStr = getTimeString("Atlantic/Azores");
+  const portoTimeStr = getTimeString("Europe/Lisbon");
+
+  // Swap Days handler
+  const handleSwapDays = () => {
+    if (!swapDayA || !swapDayB || swapDayA === swapDayB) return;
+
+    const updatedItinerary = { ...trip.itinerary };
+    const eventsA = updatedItinerary[swapDayA] ? [...updatedItinerary[swapDayA]] : [];
+    const eventsB = updatedItinerary[swapDayB] ? [...updatedItinerary[swapDayB]] : [];
+
+    updatedItinerary[swapDayA] = eventsB;
+    updatedItinerary[swapDayB] = eventsA;
+
+    onUpdateTrip({
+      ...trip,
+      itinerary: updatedItinerary
+    });
+
+    const labelA = new Date(swapDayA + "T00:00:00").toLocaleDateString("pt-PT", { day: "numeric", month: "short" });
+    const labelB = new Date(swapDayB + "T00:00:00").toLocaleDateString("pt-PT", { day: "numeric", month: "short" });
+
+    setSwapNotification(`Programação do dia ${labelA} trocada com ${labelB} com sucesso!`);
+    setShowSwapDaysModal(false);
+
+    setTimeout(() => setSwapNotification(null), 5000);
+  };
+
+  // Move single event to another day
+  const handleMoveEventToDay = (eventId: string, currentDay: string, targetDay: string) => {
+    if (currentDay === targetDay) return;
+
+    const updatedItinerary = { ...trip.itinerary };
+    const currentList = updatedItinerary[currentDay] ? [...updatedItinerary[currentDay]] : [];
+    const targetList = updatedItinerary[targetDay] ? [...updatedItinerary[targetDay]] : [];
+
+    const eventToMove = currentList.find(e => e.id === eventId);
+    if (!eventToMove) return;
+
+    updatedItinerary[currentDay] = currentList.filter(e => e.id !== eventId);
+    updatedItinerary[targetDay] = [...targetList, eventToMove].sort((a, b) => (a.timeStart || "").localeCompare(b.timeStart || ""));
+
+    onUpdateTrip({
+      ...trip,
+      itinerary: updatedItinerary
+    });
+
+    const targetLabel = new Date(targetDay + "T00:00:00").toLocaleDateString("pt-PT", { day: "numeric", month: "short" });
+    setSwapNotification(`Evento "${eventToMove.name}" movido para ${targetLabel}!`);
+    setTimeout(() => setSwapNotification(null), 4000);
+  };
 
   // Word/Text Draft Itinerary Parser states
   const [showDraftModal, setShowDraftModal] = useState(false);
@@ -549,44 +646,52 @@ export default function TripDetails({
   const activeItineraryList = calculateNavigationLegs(trip.itinerary[selectedDate] || []);
 
   // Location intelligence: Find Current Event or Next upcoming Event
-  const findActiveOrNextEvent = (): { event: Event | null; dateStr: string; type: "current" | "next" | "first" } => {
-    // Since our local mock time is 2026-07-05T09:48:19-07:00, let's see if there are any events scheduled for that date or the first date
-    const todayStr = new Date().toISOString().split("T")[0]; // "2026-07-05"
-    let targetDayEvents = trip.itinerary[todayStr];
-    let selectedDateUsed = todayStr;
+  const findActiveOrNextEvent = (): {
+    event: Event | null;
+    dateStr: string;
+    type: "current" | "next" | "future" | "past";
+    isToday: boolean;
+  } => {
+    const todayStr = new Date().toISOString().split("T")[0];
+    const todayEvents = trip.itinerary[todayStr] || [];
 
-    if (!targetDayEvents || targetDayEvents.length === 0) {
-      // Find the first day with events
-      const dayWithEvents = dates.find(d => trip.itinerary[d] && trip.itinerary[d].length > 0);
-      if (dayWithEvents) {
-        targetDayEvents = trip.itinerary[dayWithEvents];
-        selectedDateUsed = dayWithEvents;
-      }
-    }
-
-    if (!targetDayEvents || targetDayEvents.length === 0) {
-      return { event: null, dateStr: "", type: "first" };
-    }
-
-    // Parse mock system hour (we can read current local time "09:48" or check system clock)
     const nowHour = new Date().getHours();
     const nowMin = new Date().getMinutes();
     const nowTimeStr = `${String(nowHour).padStart(2, "0")}:${String(nowMin).padStart(2, "0")}`;
 
-    // 1. Try to find active event occurring right now
-    const current = targetDayEvents.find(e => nowTimeStr >= e.timeStart && (!e.timeEnd || nowTimeStr <= e.timeEnd));
-    if (current) {
-      return { event: current, dateStr: selectedDateUsed, type: "current" };
+    // 1. Check if there are events specifically scheduled for TODAY
+    if (todayEvents.length > 0) {
+      // Find event occurring right now today
+      const current = todayEvents.find(
+        e => nowTimeStr >= e.timeStart && (!e.timeEnd || nowTimeStr <= e.timeEnd)
+      );
+      if (current) {
+        return { event: current, dateStr: todayStr, type: "current", isToday: true };
+      }
+
+      // Find upcoming event later today
+      const nextToday = todayEvents.find(e => e.timeStart > nowTimeStr);
+      if (nextToday) {
+        return { event: nextToday, dateStr: todayStr, type: "next", isToday: true };
+      }
+
+      // All events for today have already finished
+      return { event: todayEvents[todayEvents.length - 1], dateStr: todayStr, type: "past", isToday: true };
     }
 
-    // 2. Try to find next upcoming event
-    const nextEvt = targetDayEvents.find(e => e.timeStart > nowTimeStr);
-    if (nextEvt) {
-      return { event: nextEvt, dateStr: selectedDateUsed, type: "next" };
+    // 2. No events for TODAY. Check for future trip dates
+    const futureDate = dates.find(d => d > todayStr && trip.itinerary[d] && trip.itinerary[d].length > 0);
+    if (futureDate && trip.itinerary[futureDate].length > 0) {
+      return { event: trip.itinerary[futureDate][0], dateStr: futureDate, type: "future", isToday: false };
     }
 
-    // 3. Fallback to the very first event of that day
-    return { event: targetDayEvents[0], dateStr: selectedDateUsed, type: "first" };
+    // 3. Fallback: No future events. Check past trip dates
+    const pastDate = dates.slice().reverse().find(d => d < todayStr && trip.itinerary[d] && trip.itinerary[d].length > 0);
+    if (pastDate && trip.itinerary[pastDate].length > 0) {
+      return { event: trip.itinerary[pastDate][0], dateStr: pastDate, type: "past", isToday: false };
+    }
+
+    return { event: null, dateStr: todayStr, type: "past", isToday: false };
   };
 
   const smartLocationEvent = findActiveOrNextEvent();
@@ -1135,6 +1240,56 @@ export default function TripDetails({
         </div>
       </div>
 
+      {/* Real-time Clock & Timezone Status Bar */}
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-4 md:p-5 rounded-2xl mb-5 shadow-sm border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-indigo-600/30 border border-indigo-500/30 flex items-center justify-center shrink-0">
+            <Clock className="w-5 h-5 text-indigo-400 animate-pulse" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-indigo-300">Modo Tempo Real & Fusos Horários</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+            </div>
+            <p className="text-xs text-slate-300 mt-0.5">
+              Sincronizado automaticamente em tempo real com a hora do dispositivo.
+            </p>
+          </div>
+        </div>
+
+        {/* Live Clocks Display */}
+        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+          <div className="flex items-center gap-1.5 bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-700/60 text-xs">
+            <Globe className="w-3.5 h-3.5 text-indigo-400" />
+            <span className="text-slate-400">Dispositivo:</span>
+            <span className="font-mono font-bold text-white">{deviceTimeStr}</span>
+          </div>
+
+          <div className="flex items-center gap-1.5 bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-700/60 text-xs">
+            <span className="text-amber-400 font-bold text-[11px]">Açores (UTC-1):</span>
+            <span className="font-mono font-bold text-amber-200">{azoresTimeStr}</span>
+          </div>
+
+          <div className="flex items-center gap-1.5 bg-indigo-600/30 px-3 py-1.5 rounded-xl border border-indigo-500/40 text-xs">
+            <span className="text-indigo-200 font-bold text-[11px]">Porto (UTC+0):</span>
+            <span className="font-mono font-bold text-white">{portoTimeStr}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Toast Notification Banner for Day Swap / Move operations */}
+      {swapNotification && (
+        <div className="mb-5 p-3.5 bg-emerald-600 text-white rounded-xl text-xs font-bold flex items-center justify-between shadow-md animate-fade-in">
+          <div className="flex items-center gap-2">
+            <Check className="w-4 h-4 text-emerald-200" />
+            <span>{swapNotification}</span>
+          </div>
+          <button onClick={() => setSwapNotification(null)} className="text-emerald-100 hover:text-white font-bold text-xs">
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Main Workspace Navigation Rails */}
       <div className="flex bg-gray-50 p-1 rounded-2xl border border-gray-200 overflow-x-auto gap-1 mb-6 scrollbar-none" id="trip-tabs">
         <button
@@ -1227,12 +1382,43 @@ export default function TripDetails({
 
               {smartLocationEvent.event ? (
                 <div className="mt-6 space-y-4">
+                  {!smartLocationEvent.isToday && (
+                    <div className="bg-amber-500/10 border border-amber-500/20 text-amber-200 text-xs px-3.5 py-2 rounded-xl flex items-center gap-2">
+                      <span className="font-semibold">
+                        Sem eventos agendados para hoje ({new Date().toLocaleDateString("pt-PT", { day: "numeric", month: "long" })}).
+                      </span>
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-2 text-indigo-200 text-xs">
-                    <Clock className="w-4 h-4" />
+                    <Clock className="w-4 h-4 shrink-0" />
                     <span>
-                      {smartLocationEvent.type === "current" && `A decorrer agora (${smartLocationEvent.event.timeStart} - ${smartLocationEvent.event.timeEnd})`}
-                      {smartLocationEvent.type === "next" && `Próximo evento programado (${smartLocationEvent.event.timeStart})`}
-                      {smartLocationEvent.type === "first" && `Dia ${smartLocationEvent.dateStr} (Início do itinerário)`}
+                      {smartLocationEvent.type === "current" && (
+                        <strong className="text-emerald-400 font-bold bg-emerald-950/80 border border-emerald-500/30 px-2.5 py-1 rounded-full text-xs inline-flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                          A decorrer agora ({smartLocationEvent.event.timeStart}{smartLocationEvent.event.timeEnd ? ` - ${smartLocationEvent.event.timeEnd}` : ""})
+                        </strong>
+                      )}
+                      {smartLocationEvent.type === "next" && (
+                        <strong className="text-indigo-200 font-bold">
+                          Próximo evento para hoje ({smartLocationEvent.event.timeStart})
+                        </strong>
+                      )}
+                      {smartLocationEvent.type === "future" && (
+                        <strong className="text-amber-300 font-bold">
+                          Próximo evento da viagem: {new Date(smartLocationEvent.dateStr + "T00:00:00").toLocaleDateString("pt-PT", { day: "numeric", month: "short", year: "numeric" })} às {smartLocationEvent.event.timeStart}
+                        </strong>
+                      )}
+                      {smartLocationEvent.type === "past" && smartLocationEvent.isToday && (
+                        <span className="text-slate-300">
+                          Todos os eventos programados para hoje já foram concluídos
+                        </span>
+                      )}
+                      {smartLocationEvent.type === "past" && !smartLocationEvent.isToday && (
+                        <span className="text-slate-300">
+                          Último evento do itinerário ({new Date(smartLocationEvent.dateStr + "T00:00:00").toLocaleDateString("pt-PT", { day: "numeric", month: "short" })})
+                        </span>
+                      )}
                     </span>
                   </div>
 
@@ -1417,22 +1603,45 @@ export default function TripDetails({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6" id="view-itinerary">
           {/* Day picker side block */}
           <div className="lg:col-span-3 space-y-3">
-            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider pl-1">Dias de Viagem</h4>
-            <div className="flex lg:flex-col gap-2 overflow-x-auto pb-2 lg:pb-0 scrollbar-none">
-              {dates.map((d, index) => (
+            <div className="flex items-center justify-between pl-1 pr-1">
+              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Dias de Viagem</h4>
+              {isPlanner && (
                 <button
-                  key={d}
-                  onClick={() => setSelectedDate(d)}
-                  className={`text-left px-4 py-3 rounded-xl border transition-all shrink-0 lg:shrink flex flex-row lg:flex-col justify-between items-start gap-1 w-fit lg:w-full ${
-                    selectedDate === d 
-                      ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100" 
-                      : "bg-white border-gray-100 hover:border-indigo-100 text-gray-600 hover:bg-gray-50"
-                  }`}
+                  type="button"
+                  onClick={() => setShowSwapDaysModal(true)}
+                  className="text-[11px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors"
+                  title="Trocar programação completa entre 2 dias"
                 >
-                  <span className="text-xs font-bold opacity-75">Dia {index + 1}</span>
-                  <span className="font-bold text-xs lg:text-sm">{new Date(d).toLocaleDateString("pt-PT", { month: "short", day: "numeric" })}</span>
+                  <ArrowRightLeft className="w-3 h-3 text-amber-600" />
+                  Trocar Dias
                 </button>
-              ))}
+              )}
+            </div>
+            <div className="flex lg:flex-col gap-2 overflow-x-auto pb-2 lg:pb-0 scrollbar-none">
+              {dates.map((d, index) => {
+                const count = (trip.itinerary[d] || []).length;
+                return (
+                  <button
+                    key={d}
+                    onClick={() => setSelectedDate(d)}
+                    className={`text-left px-4 py-3 rounded-xl border transition-all shrink-0 lg:shrink flex flex-row lg:flex-col justify-between items-start gap-1 w-fit lg:w-full ${
+                      selectedDate === d 
+                        ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100" 
+                        : "bg-white border-gray-100 hover:border-indigo-100 text-gray-600 hover:bg-gray-50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <span className="text-xs font-bold opacity-75">Dia {index + 1}</span>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                        selectedDate === d ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"
+                      }`}>
+                        {count} {count === 1 ? "evt" : "evts"}
+                      </span>
+                    </div>
+                    <span className="font-bold text-xs lg:text-sm">{new Date(d + "T00:00:00").toLocaleDateString("pt-PT", { month: "short", day: "numeric" })}</span>
+                  </button>
+                );
+              })}
             </div>
 
             {isPlanner ? (
@@ -1446,6 +1655,13 @@ export default function TripDetails({
                 >
                   <Plus className="w-4 h-4" />
                   Adicionar Evento
+                </button>
+                <button
+                  onClick={() => setShowSwapDaysModal(true)}
+                  className="w-full flex items-center justify-center gap-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 font-bold py-2 rounded-xl text-xs transition-colors shadow-xs"
+                >
+                  <ArrowRightLeft className="w-3.5 h-3.5 text-amber-600" />
+                  Trocar Dias / Programação
                 </button>
                 <button
                   onClick={() => setShowDraftModal(true)}
@@ -1673,20 +1889,37 @@ export default function TripDetails({
 
                             {/* Planner operations */}
                             {isPlanner && (
-                              <div className="flex items-center gap-2 ml-3 border-l border-gray-200 pl-3">
+                              <div className="flex items-center gap-1.5 ml-3 border-l border-gray-200 pl-3">
+                                <select
+                                  value=""
+                                  onChange={(e) => {
+                                    if (e.target.value) {
+                                      handleMoveEventToDay(evt.id, selectedDate, e.target.value);
+                                    }
+                                  }}
+                                  className="text-[11px] font-semibold text-gray-600 bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 rounded-lg px-2 py-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors"
+                                  title="Mover evento para outro dia"
+                                >
+                                  <option value="">Mover p/ dia...</option>
+                                  {dates.filter(d => d !== selectedDate).map((d) => (
+                                    <option key={d} value={d}>
+                                      Dia {dates.indexOf(d) + 1} ({new Date(d + "T00:00:00").toLocaleDateString("pt-PT", { day: "numeric", month: "short" })})
+                                    </option>
+                                  ))}
+                                </select>
                                 <button 
                                   onClick={() => handleEditEventClick(evt)}
-                                  className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 p-2 rounded-lg transition-colors flex items-center justify-center min-w-[36px] min-h-[36px]"
+                                  className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 p-2 rounded-lg transition-colors flex items-center justify-center min-w-[32px] min-h-[32px]"
                                   title="Editar"
                                 >
-                                  <Pencil className="w-4 h-4" />
+                                  <Pencil className="w-3.5 h-3.5" />
                                 </button>
                                 <button 
                                   onClick={() => handleDeleteEvent(evt.id)}
-                                  className="text-gray-400 hover:text-red-600 hover:bg-rose-50 p-2 rounded-lg transition-colors flex items-center justify-center min-w-[36px] min-h-[36px]"
+                                  className="text-gray-400 hover:text-red-600 hover:bg-rose-50 p-2 rounded-lg transition-colors flex items-center justify-center min-w-[32px] min-h-[32px]"
                                   title="Eliminar"
                                 >
-                                  <Trash className="w-4 h-4" />
+                                  <Trash className="w-3.5 h-3.5" />
                                 </button>
                               </div>
                             )}
@@ -3269,57 +3502,89 @@ export default function TripDetails({
                   </select>
                 </div>
                 <div>
-                  <label className="block font-bold text-gray-700 mb-1">Link de Imagem (Opcional)</label>
-                  <input
-                    type="text" placeholder="URL da foto"
-                    value={evtImage} onChange={(e) => setEvtImage(e.target.value)}
-                    className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-base"
-                  />
+                  <label className="block font-bold text-gray-700 mb-1 flex items-center justify-between">
+                    <span>Foto do Evento / Mapa</span>
+                    {evtImage && (
+                      <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+                        Auto (Google Maps)
+                      </span>
+                    )}
+                  </label>
+                  {evtImage ? (
+                    <div className="relative rounded-xl overflow-hidden border border-gray-200 group bg-gray-50 h-24 flex items-center justify-center">
+                      <img src={evtImage} alt="Preview" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 p-2">
+                        <button
+                          type="button"
+                          onClick={() => setEvtImage("")}
+                          className="px-2.5 py-1 bg-red-600 text-white font-bold rounded-lg text-[11px] shadow-xs hover:bg-red-700"
+                        >
+                          Remover Foto
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <input
+                      type="text" placeholder="Auto-preenchida ao selecionar no mapa..."
+                      value={evtImage} onChange={(e) => setEvtImage(e.target.value)}
+                      className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs"
+                    />
+                  )}
                 </div>
               </div>
 
+              {/* Streamlined integrated Location field */}
               <div>
-                <label className="block font-bold text-gray-700 mb-1">Link do Sítio / Google Maps (Opcional)</label>
-                <input
-                  type="text" placeholder="Cole o link do Google Maps para autocompletar"
-                  value={evtGoogleMapsLink} onChange={(e) => handleGoogleMapsLinkChange(e.target.value)}
-                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base"
-                />
-                <p className="text-[10px] text-gray-400 mt-0.5">O sistema extrai as coordenadas e morada do link de forma inteligente.</p>
-              </div>
+                <label className="block font-bold text-gray-700 mb-1.5 flex items-center justify-between">
+                  <span>Localização / Google Maps</span>
+                  {evtAddress && (
+                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      ✓ Localização Definida
+                    </span>
+                  )}
+                </label>
 
-              <div>
-                <label className="block font-bold text-gray-700 mb-1">Morada / Localização *</label>
-                <input
-                  type="text" required placeholder="Ex: Av. Beira Mar, Porto Covo"
-                  value={evtAddress} onChange={(e) => setEvtAddress(e.target.value)}
-                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base"
-                />
-              </div>
+                {evtAddress || (evtLat && evtLng) ? (
+                  <div className="bg-indigo-50/70 border border-indigo-100 rounded-xl p-3 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold text-gray-900 text-xs flex items-center gap-1.5">
+                          <MapPin className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                          <span className="truncate">{evtAddress || "Ponto no Mapa"}</span>
+                        </div>
+                        {evtLat && evtLng && (
+                          <div className="text-[10px] text-gray-500 font-mono mt-0.5">
+                            GPS: {Number(evtLat).toFixed(5)}, {Number(evtLng).toFixed(5)}
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowMapPicker(true)}
+                        className="text-[11px] font-bold text-indigo-700 hover:text-indigo-900 bg-white hover:bg-indigo-100/50 px-2.5 py-1 rounded-lg transition-colors border border-indigo-200 shadow-xs shrink-0 flex items-center gap-1"
+                      >
+                        <Globe className="w-3 h-3 text-indigo-600" />
+                        Alterar
+                      </button>
+                    </div>
 
-              <div>
-                <div className="flex justify-between items-center mb-1.5">
-                  <label className="block font-bold text-gray-700">Coordenadas GPS</label>
+                    <input
+                      type="text"
+                      placeholder="Nome do local ou morada..."
+                      value={evtAddress}
+                      onChange={(e) => setEvtAddress(e.target.value)}
+                      className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg bg-white text-xs text-gray-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+                ) : (
                   <button
                     type="button"
                     onClick={() => setShowMapPicker(true)}
-                    className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg transition-colors border border-indigo-100/50 shadow-sm"
+                    className="w-full py-3 px-4 bg-gradient-to-r from-indigo-50 via-indigo-100/70 to-indigo-50 hover:from-indigo-100 hover:to-indigo-200/80 border border-indigo-200 rounded-xl transition-all flex items-center justify-center gap-2 group text-indigo-700 font-bold text-xs shadow-xs"
                   >
-                    <Map className="w-3 h-3" />
-                    Escolher no Mapa / Coordenadas / Pesquisa
+                    <Globe className="w-4 h-4 text-indigo-600 group-hover:scale-110 transition-transform" />
+                    <span>Pesquisar e Selecionar no Google Maps</span>
                   </button>
-                </div>
-                {evtLat && evtLng ? (
-                  <div className="bg-gray-50 border border-gray-100 rounded-xl p-2 px-3 flex justify-between items-center text-xs font-mono">
-                    <span className="text-gray-500">Coordenadas Definidas:</span>
-                    <span className="font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
-                      {Number(evtLat).toFixed(5)}, {Number(evtLng).toFixed(5)}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="bg-gray-50 border border-dashed border-gray-200 rounded-xl p-2.5 text-center">
-                    <p className="text-[11px] text-gray-400 italic">Nenhum ponto GPS definido. Clique no botão acima para escolher ou pesquisar.</p>
-                  </div>
                 )}
               </div>
 
@@ -3365,11 +3630,21 @@ export default function TripDetails({
         <MapPicker
           initialLat={evtLat ? Number(evtLat) : undefined}
           initialLng={evtLng ? Number(evtLng) : undefined}
-          onSelect={(lat, lng, addr) => {
+          initialAddress={evtAddress || undefined}
+          onSelect={(lat, lng, addr, placeName, mapsUrl, photoUrl) => {
             setEvtLat(String(lat));
             setEvtLng(String(lng));
             if (addr) {
               setEvtAddress(addr);
+            }
+            if (placeName && (!evtName || evtName.trim() === "")) {
+              setEvtName(placeName);
+            }
+            if (mapsUrl) {
+              setEvtGoogleMapsLink(mapsUrl);
+            }
+            if (photoUrl) {
+              setEvtImage(photoUrl);
             }
             setShowMapPicker(false);
           }}
@@ -3381,10 +3656,10 @@ export default function TripDetails({
         <MapPicker
           initialLat={undefined}
           initialLng={undefined}
-          onSelect={(lat, lng, addr) => {
-            const cleanAddr = cleanAddressDisplay(addr || settingsAccAddress);
+          onSelect={(lat, lng, addr, placeName, mapsUrl) => {
+            const cleanAddr = cleanAddressDisplay(addr || placeName || settingsAccAddress);
             const finalAddr = `${cleanAddr} (GPS: ${lat},${lng})`;
-            const finalLink = `https://www.google.com/maps?q=${lat},${lng}`;
+            const finalLink = mapsUrl || `https://www.google.com/maps?q=${lat},${lng}`;
             setSettingsAccAddress(finalAddr);
             setSettingsAccMapLink(finalLink);
             handleSaveSettings({
@@ -3401,8 +3676,8 @@ export default function TripDetails({
         <MapPicker
           initialLat={undefined}
           initialLng={undefined}
-          onSelect={(lat, lng, addr) => {
-            const cleanAddr = cleanAddressDisplay(addr || settingsHomeAddress);
+          onSelect={(lat, lng, addr, placeName) => {
+            const cleanAddr = cleanAddressDisplay(addr || placeName || settingsHomeAddress);
             const finalAddr = `${cleanAddr} (GPS: ${lat},${lng})`;
             setSettingsHomeAddress(finalAddr);
             handleSaveSettings({
@@ -3703,6 +3978,117 @@ export default function TripDetails({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Swap Days Modal */}
+      {showSwapDaysModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm" id="swap-days-modal">
+          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden flex flex-col shadow-2xl border border-gray-100 animate-scale-up">
+            <div className="bg-gradient-to-r from-amber-600 via-indigo-600 to-indigo-700 text-white px-5 py-4 flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <ArrowRightLeft className="w-5 h-5 text-amber-200" />
+                <h3 className="font-bold text-sm">Trocar Programação de Dias (Férias)</h3>
+              </div>
+              <button type="button" onClick={() => setShowSwapDaysModal(false)} className="text-white hover:text-amber-100 font-bold p-1">
+                ✕
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 text-xs">
+              <div className="bg-amber-50 rounded-xl p-3 border border-amber-200 text-amber-950 space-y-1">
+                <p className="font-bold text-[11px] uppercase tracking-wide text-amber-800 flex items-center gap-1.5">
+                  <CloudRain className="w-3.5 h-3.5 text-amber-600" />
+                  Ajuste Flexível por Mau Tempo / Reorganização
+                </p>
+                <p className="leading-relaxed text-[11px] text-amber-900">
+                  Troque a programação completa entre dois dias da sua viagem com um clique. Por exemplo: se no Dia 1 estiver mau tempo de manhã, troque o programa do Dia 1 pelo do Dia 3!
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                {/* Select Day A */}
+                <div className="space-y-1.5">
+                  <label className="block font-bold text-gray-700">Primeiro Dia (Dia A):</label>
+                  <select
+                    value={swapDayA}
+                    onChange={(e) => setSwapDayA(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 font-medium text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    {dates.map((d, i) => (
+                      <option key={d} value={d}>
+                        Dia {i + 1} ({new Date(d + "T00:00:00").toLocaleDateString("pt-PT", { day: "numeric", month: "short" })}) - {(trip.itinerary[d] || []).length} evts
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Select Day B */}
+                <div className="space-y-1.5">
+                  <label className="block font-bold text-gray-700">Segundo Dia (Dia B):</label>
+                  <select
+                    value={swapDayB}
+                    onChange={(e) => setSwapDayB(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 font-medium text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    {dates.map((d, i) => (
+                      <option key={d} value={d}>
+                        Dia {i + 1} ({new Date(d + "T00:00:00").toLocaleDateString("pt-PT", { day: "numeric", month: "short" })}) - {(trip.itinerary[d] || []).length} evts
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Day comparison box */}
+              {swapDayA && swapDayB && swapDayA !== swapDayB && (
+                <div className="bg-gray-50 rounded-xl p-3.5 border border-gray-200 flex items-center justify-between text-xs gap-2">
+                  <div className="space-y-1 flex-1">
+                    <span className="font-bold text-indigo-700 block text-xs">
+                      Dia {dates.indexOf(swapDayA) + 1} ({new Date(swapDayA + "T00:00:00").toLocaleDateString("pt-PT", { day: "numeric", month: "short" })})
+                    </span>
+                    <p className="text-gray-500 text-[11px] truncate">
+                      {(trip.itinerary[swapDayA] || []).length} evento(s)
+                    </p>
+                  </div>
+                  <ArrowRightLeft className="w-5 h-5 text-amber-600 shrink-0" />
+                  <div className="space-y-1 text-right flex-1">
+                    <span className="font-bold text-indigo-700 block text-xs">
+                      Dia {dates.indexOf(swapDayB) + 1} ({new Date(swapDayB + "T00:00:00").toLocaleDateString("pt-PT", { day: "numeric", month: "short" })})
+                    </span>
+                    <p className="text-gray-500 text-[11px] truncate">
+                      {(trip.itinerary[swapDayB] || []).length} evento(s)
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {swapDayA === swapDayB && (
+                <p className="text-amber-600 font-medium text-[11px] text-center bg-amber-50 p-2 rounded-lg border border-amber-200">
+                  ⚠️ Por favor selecione dois dias diferentes para realizar a troca.
+                </p>
+              )}
+
+              <div className="flex gap-2.5 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setShowSwapDaysModal(false)}
+                  className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl text-xs transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={!swapDayA || !swapDayB || swapDayA === swapDayB}
+                  onClick={handleSwapDays}
+                  className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-semibold rounded-xl text-xs shadow transition-colors flex items-center justify-center gap-2"
+                >
+                  <ArrowRightLeft className="w-4 h-4 text-amber-300" />
+                  Confirmar Troca de Programação
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -1,11 +1,303 @@
 {
   "trips": [
     {
+      "id": "trip-ferias-2026",
+      "name": "Férias 2026 🌴",
+      "destination": "Açores → Porto & Norte de Portugal",
+      "startDate": "2026-07-31",
+      "endDate": "2026-08-07",
+      "description": "Programa completo de férias com voo de Ponta Delgada para o Porto, levantamento de carro na Centauro, almoço na Maia, compras no Parque Nascente, alojamento na Corujeira, passeio no Gaia Park e jantar no Temple d'Ouro.",
+      "status": "active",
+      "homeAddress": "Ponta Delgada, Açores",
+      "accommodationAddress": "Rua Central da Corujeira 72, Porto, 4300-111 Campanhã",
+      "accommodationMapLink": "https://www.google.com/maps/search/?api=1&query=Rua+Central+da+Corujeira+72+Porto",
+      "accommodationName": "Casa da Corujeira - Campanhã",
+      "accommodationContact": "+351 910 000 000",
+      "vehicle": {
+        "id": "ev-centauro-peugeot",
+        "name": "Peugeot e-208 / EV Centauro",
+        "type": "electric",
+        "autonomyRange": 350,
+        "limitThreshold": 20,
+        "currentAutonomy": 300,
+        "batteryPercent": 85
+      },
+      "accommodation": {
+        "name": "Alojamento Corujeira",
+        "address": "Rua Central da Corujeira 72, Porto",
+        "checkIn": "2026-07-31",
+        "checkOut": "2026-08-07",
+        "price": 520
+      },
+      "flights": [
+        {
+          "id": "flight-pdl-opo-2026",
+          "flightNumber": "S4 120 / TP 1862",
+          "airline": "SATA / TAP Air Portugal",
+          "origin": "Ponta Delgada (PDL)",
+          "destination": "Porto (OPO)",
+          "departureTime": "2026-07-31T08:20:00",
+          "arrivalTime": "2026-07-31T11:40:00",
+          "gateCloseTime": "07:45",
+          "price": 145
+        }
+      ],
+      "documents": [],
+      "expenses": [
+        {
+          "id": "exp-centauro-car",
+          "category": "Rent-a-Car",
+          "description": "Aluguer de Carro Centauro Rent-a-Car",
+          "amount": 210,
+          "date": "2026-07-31",
+          "isPlanned": true,
+          "supplier": "Centauro Porto"
+        },
+        {
+          "id": "exp-temple-douro",
+          "category": "Restaurantes",
+          "description": "Jantar no Restaurante Temple d’Ouro (Gaia)",
+          "amount": 75,
+          "date": "2026-07-31",
+          "isPlanned": true,
+          "supplier": "Temple d’Ouro"
+        }
+      ],
+      "participants": [
+        {
+          "id": "user-ricardo",
+          "name": "Ricardo Medeiros",
+          "email": "ricardojpmedeiros@gmail.com",
+          "role": "Planeador"
+        }
+      ],
+      "itinerary": {
+        "2026-07-31": [
+          {
+            "id": "ev-f31-1",
+            "timeStart": "06:20",
+            "timeEnd": "06:40",
+            "name": "Saída de Casa → Aeroporto de Ponta Delgada",
+            "description": "Saída de casa (Açores) em direção ao Aeroporto de Ponta Delgada (PDL).",
+            "category": "Viagem / Na estrada",
+            "address": "Rua dos Lagos 4, Ribeira Grande, Açores (GPS: 37.8133, -25.5335)",
+            "coordinates": {
+              "lat": 37.8133,
+              "lng": -25.5335
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/74tEXRd9h89GzYSt5",
+            "wazeLink": "https://waze.com/ul?q=Rua+dos+Lagos+4+Ribeira+Grande",
+            "image": "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80",
+            "notes": "Saída no máximo às 06:20H para garantir chegada ao aeroporto às 06:40H.",
+            "distanceFromPrev": "0 km",
+            "timeFromPrev": "0m"
+          },
+          {
+            "id": "ev-f31-2",
+            "timeStart": "06:40",
+            "timeEnd": "07:45",
+            "name": "Aeroporto PDL - Check-in & Embarque",
+            "description": "Chegada ao aeroporto de Ponta Delgada (João Paulo II). Raio-X, controlo de segurança e fecho da porta de embarque.",
+            "category": "Voo",
+            "address": "Aeroporto de Ponta Delgada - João Paulo II, Açores (GPS: 37.7493, -25.7104)",
+            "coordinates": {
+              "lat": 37.7493,
+              "lng": -25.7104
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/74tEXRd9h89GzYSt5",
+            "wazeLink": "https://waze.com/ul?q=Aeroporto+Ponta+Delgada",
+            "image": "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=800&q=80",
+            "notes": "Fecho da porta de embarque às 07:45H. Partida do voo às 08:20H.",
+            "distanceFromPrev": "21 km",
+            "timeFromPrev": "20m"
+          },
+          {
+            "id": "ev-f31-3",
+            "timeStart": "08:20",
+            "timeEnd": "11:40",
+            "name": "Voo Ponta Delgada (PDL) ✈️ Porto (OPO)",
+            "description": "Voo direto de Ponta Delgada para o Porto. Duração do voo: 2h20m (chegada ao Porto às 11:40H hora local).",
+            "category": "Voo",
+            "address": "Aeroporto Francisco Sá Carneiro (Porto), Portugal (GPS: 41.2424, -8.6786)",
+            "coordinates": {
+              "lat": 41.2424,
+              "lng": -8.6786
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/BG9CZZQZhxUo4ESc9",
+            "wazeLink": "https://waze.com/ul?q=Aeroporto+Porto",
+            "image": "https://images.unsplash.com/photo-1542296332-2e4473faf563?auto=format&fit=crop&w=800&q=80",
+            "notes": "Duração do voo: 2h20m (+1h de fuso horário do Continente).",
+            "distanceFromPrev": "1500 km",
+            "timeFromPrev": "2h 20m"
+          },
+          {
+            "id": "ev-f31-4",
+            "timeStart": "11:40",
+            "timeEnd": "12:05",
+            "name": "Recolha de Bagagem & Transfer Centauro",
+            "description": "Recolha das malas de porão nas Chegadas do Aeroporto e transporte no transfer da Centauro.",
+            "category": "Rent-a-Car",
+            "address": "Aeroporto do Porto (Chegadas) (GPS: 41.2424, -8.6786)",
+            "coordinates": {
+              "lat": 41.2424,
+              "lng": -8.6786
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/BG9CZZQZhxUo4ESc9",
+            "wazeLink": "https://waze.com/ul?q=Aeroporto+Porto",
+            "image": "https://images.unsplash.com/photo-1556388158-158ea5ccacbd?auto=format&fit=crop&w=800&q=80",
+            "notes": "12:05H - Transfer do Aeroporto para a Rent-a-Car (Centauro) (3 min, 1 km).",
+            "distanceFromPrev": "0 km",
+            "timeFromPrev": "0m"
+          },
+          {
+            "id": "ev-f31-5",
+            "timeStart": "12:05",
+            "timeEnd": "12:15",
+            "name": "Levantamento do Carro na Centauro Rent-a-Car",
+            "description": "Levantar viatura de aluguer na estação da Centauro. Saída prevista às 12:15H.",
+            "category": "Rent-a-Car",
+            "address": "Centauro Rent a Car, Porto (GPS: 41.2380, -8.6720)",
+            "coordinates": {
+              "lat": 41.238,
+              "lng": -8.672
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Centauro+Rent+a+Car+Porto",
+            "wazeLink": "https://waze.com/ul?q=Centauro+Rent+a+Car+Porto",
+            "image": "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=800&q=80",
+            "notes": "Saída da Centauro aproximada: 12:15H.",
+            "distanceFromPrev": "1 km",
+            "timeFromPrev": "3m"
+          },
+          {
+            "id": "ev-f31-6",
+            "timeStart": "12:15",
+            "timeEnd": "13:30",
+            "name": "Almoço na Maia (Opção 1: Mister Churrasco)",
+            "description": "Viagem da Centauro para a Maia (12:15H às 12:25H, 10 min). Almoço no Mister Churrasco (ou opções alternativas). Dar uma volta nos arredores no final.",
+            "category": "Restaurante",
+            "address": "Mister Churrasco, Maia, Portugal (GPS: 41.2325, -8.6218)",
+            "coordinates": {
+              "lat": 41.2325,
+              "lng": -8.6218
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/HRief7r1YAJbxo2W9",
+            "wazeLink": "https://waze.com/ul?q=Mister+Churrasco+Maia",
+            "image": "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80",
+            "notes": "Viagem ~10 min. Opção 1: Mister Churrasco (Google Maps: https://maps.app.goo.gl/HRief7r1YAJbxo2W9).",
+            "distanceFromPrev": "6 km",
+            "timeFromPrev": "10m"
+          },
+          {
+            "id": "ev-f31-7",
+            "timeStart": "13:30",
+            "timeEnd": "17:00",
+            "name": "Parque Nascente Shopping (Compras, Lanche & Carregamento EV)",
+            "description": "Seguida para o Parque Nascente Shopping (13:30H - 13:50H). Compras (~3h) e lanche no final. O carro elétrico fica a carregar no parque do shopping.",
+            "category": "Atividade livre",
+            "address": "Parque Nascente Shopping, Rio Tinto / Porto (GPS: 41.1764, -8.5639)",
+            "coordinates": {
+              "lat": 41.1764,
+              "lng": -8.5639
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Parque+Nascente+Shopping",
+            "wazeLink": "https://waze.com/ul?q=Parque+Nascente+Shopping",
+            "image": "https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5?auto=format&fit=crop&w=800&q=80",
+            "notes": "Viagem 13:30H - 13:50H. Carro a carregar no posto do shopping.",
+            "distanceFromPrev": "12 km",
+            "timeFromPrev": "20m"
+          },
+          {
+            "id": "ev-f31-8",
+            "timeStart": "17:00",
+            "timeEnd": "18:15",
+            "name": "Chegada a Casa, Desfazer Malas & Duche Rápido",
+            "description": "Viagem do shopping para casa (17:00H - 17:15H). Ver a casa, desfazer malas e tomar duche rápido.",
+            "category": "Hotel",
+            "address": "Rua Central da Corujeira 72, 4300-111 Campanhã, Porto (GPS: 41.1578, -8.5772)",
+            "coordinates": {
+              "lat": 41.1578,
+              "lng": -8.5772
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Rua+Central+da+Corujeira+72+Porto",
+            "wazeLink": "https://waze.com/ul?q=Rua+Central+da+Corujeira+72+Porto",
+            "image": "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80",
+            "notes": "Morada: Rua Central da Corujeira 72, Porto, 4300-111 Campanhã.",
+            "distanceFromPrev": "3 km",
+            "timeFromPrev": "15m"
+          },
+          {
+            "id": "ev-f31-9",
+            "timeStart": "18:15",
+            "timeEnd": "20:30",
+            "name": "Gaia Park (Lojas Mercadona & Action)",
+            "description": "Viagem de casa ao Gaia Park (18:15H - 18:30H) para visitar lojas como Mercadona e Action.",
+            "category": "Atividade livre",
+            "address": "Gaia Park, Vila Nova de Gaia (GPS: 41.1215, -8.6085)",
+            "coordinates": {
+              "lat": 41.1215,
+              "lng": -8.6085
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Gaia+Park+Vila+Nova+de+Gaia",
+            "wazeLink": "https://waze.com/ul?q=Gaia+Park+Vila+Nova+de+Gaia",
+            "image": "https://images.unsplash.com/photo-1534452203293-494d7ddbf7e0?auto=format&fit=crop&w=800&q=80",
+            "notes": "Ver lojas Mercadona e Action.",
+            "distanceFromPrev": "7 km",
+            "timeFromPrev": "15m"
+          },
+          {
+            "id": "ev-f31-10",
+            "timeStart": "20:30",
+            "timeEnd": "22:30",
+            "name": "Jantar no Restaurante Temple d'Ouro",
+            "description": "Viagem do Gaia Park para o Cais de Gaia (20:30H - 20:45H) e jantar reservado das 21:00H às 22:30H no Temple d'Ouro.",
+            "category": "Restaurante",
+            "address": "Restaurante Temple d'Ouro, Cais de Gaia (GPS: 41.1378, -8.6131)",
+            "coordinates": {
+              "lat": 41.1378,
+              "lng": -8.6131
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/search?api=1&query=Restaurante+Temple+d+Ouro+Gaia",
+            "wazeLink": "https://waze.com/ul?q=Temple+d+Ouro+Gaia",
+            "image": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
+            "notes": "Jantar das 21:00H às 22:30H.",
+            "distanceFromPrev": "3 km",
+            "timeFromPrev": "15m"
+          },
+          {
+            "id": "ev-f31-11",
+            "timeStart": "22:30",
+            "timeEnd": "23:59",
+            "name": "Passeio Noturno Cais de Gaia & Cais da Ribeira",
+            "description": "Passeio a pé pelo Cais de Gaia e Cais da Ribeira. Regresso a casa para descansar.",
+            "category": "Passeio / Lazer",
+            "address": "Cais de Gaia & Cais da Ribeira, Porto (GPS: 41.1402, -8.6110)",
+            "coordinates": {
+              "lat": 41.1402,
+              "lng": -8.611
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Cais+da+Ribeira+Porto",
+            "wazeLink": "https://waze.com/ul?q=Cais+da+Ribeira+Porto",
+            "image": "https://images.unsplash.com/photo-1555881400-74d7acaacd8b?auto=format&fit=crop&w=800&q=80",
+            "notes": "Passeio na marginal da Ribeira e Gaia. Regresso a casa.",
+            "distanceFromPrev": "0.5 km",
+            "timeFromPrev": "5m"
+          }
+        ],
+        "2026-08-01": [],
+        "2026-08-02": [],
+        "2026-08-03": [],
+        "2026-08-04": [],
+        "2026-08-05": [],
+        "2026-08-06": [],
+        "2026-08-07": []
+      }
+    },
+    {
       "id": "trip-1783432501232",
       "name": "Viagem Teste Local",
       "destination": "Lisboa",
       "startDate": "2026-07-20",
-      "endDate": "2026-07-22",
+      "endDate": "2026-07-31",
       "description": "",
       "status": "active",
       "homeAddress": "",
@@ -20,7 +312,218 @@
       "itinerary": {
         "2026-07-20": [],
         "2026-07-21": [],
-        "2026-07-22": []
+        "2026-07-22": [],
+        "2026-07-31": [
+          {
+            "id": "ev-f31-1",
+            "timeStart": "06:20",
+            "timeEnd": "06:40",
+            "name": "Saída de Casa → Aeroporto de Ponta Delgada",
+            "description": "Saída de casa (Açores) em direção ao Aeroporto de Ponta Delgada (PDL).",
+            "category": "Viagem / Na estrada",
+            "address": "Rua dos Lagos 4, Ribeira Grande, Açores (GPS: 37.8133, -25.5335)",
+            "coordinates": {
+              "lat": 37.8133,
+              "lng": -25.5335
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/74tEXRd9h89GzYSt5",
+            "wazeLink": "https://waze.com/ul?q=Rua+dos+Lagos+4+Ribeira+Grande",
+            "image": "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80",
+            "notes": "Saída no máximo às 06:20H para garantir chegada ao aeroporto às 06:40H.",
+            "distanceFromPrev": "0 km",
+            "timeFromPrev": "0m"
+          },
+          {
+            "id": "ev-f31-2",
+            "timeStart": "06:40",
+            "timeEnd": "07:45",
+            "name": "Aeroporto PDL - Check-in & Embarque",
+            "description": "Chegada ao aeroporto de Ponta Delgada (João Paulo II). Raio-X, controlo de segurança e fecho da porta de embarque.",
+            "category": "Voo",
+            "address": "Aeroporto de Ponta Delgada - João Paulo II, Açores (GPS: 37.7493, -25.7104)",
+            "coordinates": {
+              "lat": 37.7493,
+              "lng": -25.7104
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/74tEXRd9h89GzYSt5",
+            "wazeLink": "https://waze.com/ul?q=Aeroporto+Ponta+Delgada",
+            "image": "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=800&q=80",
+            "notes": "Fecho da porta de embarque às 07:45H. Partida do voo às 08:20H.",
+            "distanceFromPrev": "21 km",
+            "timeFromPrev": "20m"
+          },
+          {
+            "id": "ev-f31-3",
+            "timeStart": "08:20",
+            "timeEnd": "11:40",
+            "name": "Voo Ponta Delgada (PDL) ✈️ Porto (OPO)",
+            "description": "Voo direto de Ponta Delgada para o Porto. Duração do voo: 2h20m (chegada ao Porto às 11:40H hora local).",
+            "category": "Voo",
+            "address": "Aeroporto Francisco Sá Carneiro (Porto), Portugal (GPS: 41.2424, -8.6786)",
+            "coordinates": {
+              "lat": 41.2424,
+              "lng": -8.6786
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/BG9CZZQZhxUo4ESc9",
+            "wazeLink": "https://waze.com/ul?q=Aeroporto+Porto",
+            "image": "https://images.unsplash.com/photo-1542296332-2e4473faf563?auto=format&fit=crop&w=800&q=80",
+            "notes": "Duração do voo: 2h20m (+1h de fuso horário do Continente).",
+            "distanceFromPrev": "1500 km",
+            "timeFromPrev": "2h 20m"
+          },
+          {
+            "id": "ev-f31-4",
+            "timeStart": "11:40",
+            "timeEnd": "12:05",
+            "name": "Recolha de Bagagem & Transfer Centauro",
+            "description": "Recolha das malas de porão nas Chegadas do Aeroporto e transporte no transfer da Centauro.",
+            "category": "Rent-a-Car",
+            "address": "Aeroporto do Porto (Chegadas) (GPS: 41.2424, -8.6786)",
+            "coordinates": {
+              "lat": 41.2424,
+              "lng": -8.6786
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/BG9CZZQZhxUo4ESc9",
+            "wazeLink": "https://waze.com/ul?q=Aeroporto+Porto",
+            "image": "https://images.unsplash.com/photo-1556388158-158ea5ccacbd?auto=format&fit=crop&w=800&q=80",
+            "notes": "12:05H - Transfer do Aeroporto para a Rent-a-Car (Centauro) (3 min, 1 km).",
+            "distanceFromPrev": "0 km",
+            "timeFromPrev": "0m"
+          },
+          {
+            "id": "ev-f31-5",
+            "timeStart": "12:05",
+            "timeEnd": "12:15",
+            "name": "Levantamento do Carro na Centauro Rent-a-Car",
+            "description": "Levantar viatura de aluguer na estação da Centauro. Saída prevista às 12:15H.",
+            "category": "Rent-a-Car",
+            "address": "Centauro Rent a Car, Porto (GPS: 41.2380, -8.6720)",
+            "coordinates": {
+              "lat": 41.238,
+              "lng": -8.672
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Centauro+Rent+a+Car+Porto",
+            "wazeLink": "https://waze.com/ul?q=Centauro+Rent+a+Car+Porto",
+            "image": "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=800&q=80",
+            "notes": "Saída da Centauro aproximada: 12:15H.",
+            "distanceFromPrev": "1 km",
+            "timeFromPrev": "3m"
+          },
+          {
+            "id": "ev-f31-6",
+            "timeStart": "12:15",
+            "timeEnd": "13:30",
+            "name": "Almoço na Maia (Opção 1: Mister Churrasco)",
+            "description": "Viagem da Centauro para a Maia (12:15H às 12:25H, 10 min). Almoço no Mister Churrasco (ou opções alternativas). Dar uma volta nos arredores no final.",
+            "category": "Restaurante",
+            "address": "Mister Churrasco, Maia, Portugal (GPS: 41.2325, -8.6218)",
+            "coordinates": {
+              "lat": 41.2325,
+              "lng": -8.6218
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/HRief7r1YAJbxo2W9",
+            "wazeLink": "https://waze.com/ul?q=Mister+Churrasco+Maia",
+            "image": "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80",
+            "notes": "Viagem ~10 min. Opção 1: Mister Churrasco (Google Maps: https://maps.app.goo.gl/HRief7r1YAJbxo2W9).",
+            "distanceFromPrev": "6 km",
+            "timeFromPrev": "10m"
+          },
+          {
+            "id": "ev-f31-7",
+            "timeStart": "13:30",
+            "timeEnd": "17:00",
+            "name": "Parque Nascente Shopping (Compras, Lanche & Carregamento EV)",
+            "description": "Seguida para o Parque Nascente Shopping (13:30H - 13:50H). Compras (~3h) e lanche no final. O carro elétrico fica a carregar no parque do shopping.",
+            "category": "Atividade livre",
+            "address": "Parque Nascente Shopping, Rio Tinto / Porto (GPS: 41.1764, -8.5639)",
+            "coordinates": {
+              "lat": 41.1764,
+              "lng": -8.5639
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Parque+Nascente+Shopping",
+            "wazeLink": "https://waze.com/ul?q=Parque+Nascente+Shopping",
+            "image": "https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5?auto=format&fit=crop&w=800&q=80",
+            "notes": "Viagem 13:30H - 13:50H. Carro a carregar no posto do shopping.",
+            "distanceFromPrev": "12 km",
+            "timeFromPrev": "20m"
+          },
+          {
+            "id": "ev-f31-8",
+            "timeStart": "17:00",
+            "timeEnd": "18:15",
+            "name": "Chegada a Casa, Desfazer Malas & Duche Rápido",
+            "description": "Viagem do shopping para casa (17:00H - 17:15H). Ver a casa, desfazer malas e tomar duche rápido.",
+            "category": "Hotel",
+            "address": "Rua Central da Corujeira 72, 4300-111 Campanhã, Porto (GPS: 41.1578, -8.5772)",
+            "coordinates": {
+              "lat": 41.1578,
+              "lng": -8.5772
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Rua+Central+da+Corujeira+72+Porto",
+            "wazeLink": "https://waze.com/ul?q=Rua+Central+da+Corujeira+72+Porto",
+            "image": "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80",
+            "notes": "Morada: Rua Central da Corujeira 72, Porto, 4300-111 Campanhã.",
+            "distanceFromPrev": "3 km",
+            "timeFromPrev": "15m"
+          },
+          {
+            "id": "ev-f31-9",
+            "timeStart": "18:15",
+            "timeEnd": "20:30",
+            "name": "Gaia Park (Lojas Mercadona & Action)",
+            "description": "Viagem de casa ao Gaia Park (18:15H - 18:30H) para visitar lojas como Mercadona e Action.",
+            "category": "Atividade livre",
+            "address": "Gaia Park, Vila Nova de Gaia (GPS: 41.1215, -8.6085)",
+            "coordinates": {
+              "lat": 41.1215,
+              "lng": -8.6085
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Gaia+Park+Vila+Nova+de+Gaia",
+            "wazeLink": "https://waze.com/ul?q=Gaia+Park+Vila+Nova+de+Gaia",
+            "image": "https://images.unsplash.com/photo-1534452203293-494d7ddbf7e0?auto=format&fit=crop&w=800&q=80",
+            "notes": "Ver lojas Mercadona e Action.",
+            "distanceFromPrev": "7 km",
+            "timeFromPrev": "15m"
+          },
+          {
+            "id": "ev-f31-10",
+            "timeStart": "20:30",
+            "timeEnd": "22:30",
+            "name": "Jantar no Restaurante Temple d'Ouro",
+            "description": "Viagem do Gaia Park para o Cais de Gaia (20:30H - 20:45H) e jantar reservado das 21:00H às 22:30H no Temple d'Ouro.",
+            "category": "Restaurante",
+            "address": "Restaurante Temple d'Ouro, Cais de Gaia (GPS: 41.1378, -8.6131)",
+            "coordinates": {
+              "lat": 41.1378,
+              "lng": -8.6131
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/search?api=1&query=Restaurante+Temple+d+Ouro+Gaia",
+            "wazeLink": "https://waze.com/ul?q=Temple+d+Ouro+Gaia",
+            "image": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
+            "notes": "Jantar das 21:00H às 22:30H.",
+            "distanceFromPrev": "3 km",
+            "timeFromPrev": "15m"
+          },
+          {
+            "id": "ev-f31-11",
+            "timeStart": "22:30",
+            "timeEnd": "23:59",
+            "name": "Passeio Noturno Cais de Gaia & Cais da Ribeira",
+            "description": "Passeio a pé pelo Cais de Gaia e Cais da Ribeira. Regresso a casa para descansar.",
+            "category": "Passeio / Lazer",
+            "address": "Cais de Gaia & Cais da Ribeira, Porto (GPS: 41.1402, -8.6110)",
+            "coordinates": {
+              "lat": 41.1402,
+              "lng": -8.611
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Cais+da+Ribeira+Porto",
+            "wazeLink": "https://waze.com/ul?q=Cais+da+Ribeira+Porto",
+            "image": "https://images.unsplash.com/photo-1555881400-74d7acaacd8b?auto=format&fit=crop&w=800&q=80",
+            "notes": "Passeio na marginal da Ribeira e Gaia. Regresso a casa.",
+            "distanceFromPrev": "0.5 km",
+            "timeFromPrev": "5m"
+          }
+        ]
       },
       "expenses": [],
       "participants": [
@@ -37,7 +540,7 @@
       "name": "Teste de Viagem",
       "destination": "Porto",
       "startDate": "2026-07-10",
-      "endDate": "2026-07-13",
+      "endDate": "2026-07-31",
       "description": "",
       "status": "active",
       "homeAddress": "Av. Almirante Reis, Lisboa",
@@ -53,7 +556,218 @@
         "2026-07-10": [],
         "2026-07-11": [],
         "2026-07-12": [],
-        "2026-07-13": []
+        "2026-07-13": [],
+        "2026-07-31": [
+          {
+            "id": "ev-f31-1",
+            "timeStart": "06:20",
+            "timeEnd": "06:40",
+            "name": "Saída de Casa → Aeroporto de Ponta Delgada",
+            "description": "Saída de casa (Açores) em direção ao Aeroporto de Ponta Delgada (PDL).",
+            "category": "Viagem / Na estrada",
+            "address": "Rua dos Lagos 4, Ribeira Grande, Açores (GPS: 37.8133, -25.5335)",
+            "coordinates": {
+              "lat": 37.8133,
+              "lng": -25.5335
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/74tEXRd9h89GzYSt5",
+            "wazeLink": "https://waze.com/ul?q=Rua+dos+Lagos+4+Ribeira+Grande",
+            "image": "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80",
+            "notes": "Saída no máximo às 06:20H para garantir chegada ao aeroporto às 06:40H.",
+            "distanceFromPrev": "0 km",
+            "timeFromPrev": "0m"
+          },
+          {
+            "id": "ev-f31-2",
+            "timeStart": "06:40",
+            "timeEnd": "07:45",
+            "name": "Aeroporto PDL - Check-in & Embarque",
+            "description": "Chegada ao aeroporto de Ponta Delgada (João Paulo II). Raio-X, controlo de segurança e fecho da porta de embarque.",
+            "category": "Voo",
+            "address": "Aeroporto de Ponta Delgada - João Paulo II, Açores (GPS: 37.7493, -25.7104)",
+            "coordinates": {
+              "lat": 37.7493,
+              "lng": -25.7104
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/74tEXRd9h89GzYSt5",
+            "wazeLink": "https://waze.com/ul?q=Aeroporto+Ponta+Delgada",
+            "image": "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=800&q=80",
+            "notes": "Fecho da porta de embarque às 07:45H. Partida do voo às 08:20H.",
+            "distanceFromPrev": "21 km",
+            "timeFromPrev": "20m"
+          },
+          {
+            "id": "ev-f31-3",
+            "timeStart": "08:20",
+            "timeEnd": "11:40",
+            "name": "Voo Ponta Delgada (PDL) ✈️ Porto (OPO)",
+            "description": "Voo direto de Ponta Delgada para o Porto. Duração do voo: 2h20m (chegada ao Porto às 11:40H hora local).",
+            "category": "Voo",
+            "address": "Aeroporto Francisco Sá Carneiro (Porto), Portugal (GPS: 41.2424, -8.6786)",
+            "coordinates": {
+              "lat": 41.2424,
+              "lng": -8.6786
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/BG9CZZQZhxUo4ESc9",
+            "wazeLink": "https://waze.com/ul?q=Aeroporto+Porto",
+            "image": "https://images.unsplash.com/photo-1542296332-2e4473faf563?auto=format&fit=crop&w=800&q=80",
+            "notes": "Duração do voo: 2h20m (+1h de fuso horário do Continente).",
+            "distanceFromPrev": "1500 km",
+            "timeFromPrev": "2h 20m"
+          },
+          {
+            "id": "ev-f31-4",
+            "timeStart": "11:40",
+            "timeEnd": "12:05",
+            "name": "Recolha de Bagagem & Transfer Centauro",
+            "description": "Recolha das malas de porão nas Chegadas do Aeroporto e transporte no transfer da Centauro.",
+            "category": "Rent-a-Car",
+            "address": "Aeroporto do Porto (Chegadas) (GPS: 41.2424, -8.6786)",
+            "coordinates": {
+              "lat": 41.2424,
+              "lng": -8.6786
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/BG9CZZQZhxUo4ESc9",
+            "wazeLink": "https://waze.com/ul?q=Aeroporto+Porto",
+            "image": "https://images.unsplash.com/photo-1556388158-158ea5ccacbd?auto=format&fit=crop&w=800&q=80",
+            "notes": "12:05H - Transfer do Aeroporto para a Rent-a-Car (Centauro) (3 min, 1 km).",
+            "distanceFromPrev": "0 km",
+            "timeFromPrev": "0m"
+          },
+          {
+            "id": "ev-f31-5",
+            "timeStart": "12:05",
+            "timeEnd": "12:15",
+            "name": "Levantamento do Carro na Centauro Rent-a-Car",
+            "description": "Levantar viatura de aluguer na estação da Centauro. Saída prevista às 12:15H.",
+            "category": "Rent-a-Car",
+            "address": "Centauro Rent a Car, Porto (GPS: 41.2380, -8.6720)",
+            "coordinates": {
+              "lat": 41.238,
+              "lng": -8.672
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Centauro+Rent+a+Car+Porto",
+            "wazeLink": "https://waze.com/ul?q=Centauro+Rent+a+Car+Porto",
+            "image": "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=800&q=80",
+            "notes": "Saída da Centauro aproximada: 12:15H.",
+            "distanceFromPrev": "1 km",
+            "timeFromPrev": "3m"
+          },
+          {
+            "id": "ev-f31-6",
+            "timeStart": "12:15",
+            "timeEnd": "13:30",
+            "name": "Almoço na Maia (Opção 1: Mister Churrasco)",
+            "description": "Viagem da Centauro para a Maia (12:15H às 12:25H, 10 min). Almoço no Mister Churrasco (ou opções alternativas). Dar uma volta nos arredores no final.",
+            "category": "Restaurante",
+            "address": "Mister Churrasco, Maia, Portugal (GPS: 41.2325, -8.6218)",
+            "coordinates": {
+              "lat": 41.2325,
+              "lng": -8.6218
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/HRief7r1YAJbxo2W9",
+            "wazeLink": "https://waze.com/ul?q=Mister+Churrasco+Maia",
+            "image": "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80",
+            "notes": "Viagem ~10 min. Opção 1: Mister Churrasco (Google Maps: https://maps.app.goo.gl/HRief7r1YAJbxo2W9).",
+            "distanceFromPrev": "6 km",
+            "timeFromPrev": "10m"
+          },
+          {
+            "id": "ev-f31-7",
+            "timeStart": "13:30",
+            "timeEnd": "17:00",
+            "name": "Parque Nascente Shopping (Compras, Lanche & Carregamento EV)",
+            "description": "Seguida para o Parque Nascente Shopping (13:30H - 13:50H). Compras (~3h) e lanche no final. O carro elétrico fica a carregar no parque do shopping.",
+            "category": "Atividade livre",
+            "address": "Parque Nascente Shopping, Rio Tinto / Porto (GPS: 41.1764, -8.5639)",
+            "coordinates": {
+              "lat": 41.1764,
+              "lng": -8.5639
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Parque+Nascente+Shopping",
+            "wazeLink": "https://waze.com/ul?q=Parque+Nascente+Shopping",
+            "image": "https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5?auto=format&fit=crop&w=800&q=80",
+            "notes": "Viagem 13:30H - 13:50H. Carro a carregar no posto do shopping.",
+            "distanceFromPrev": "12 km",
+            "timeFromPrev": "20m"
+          },
+          {
+            "id": "ev-f31-8",
+            "timeStart": "17:00",
+            "timeEnd": "18:15",
+            "name": "Chegada a Casa, Desfazer Malas & Duche Rápido",
+            "description": "Viagem do shopping para casa (17:00H - 17:15H). Ver a casa, desfazer malas e tomar duche rápido.",
+            "category": "Hotel",
+            "address": "Rua Central da Corujeira 72, 4300-111 Campanhã, Porto (GPS: 41.1578, -8.5772)",
+            "coordinates": {
+              "lat": 41.1578,
+              "lng": -8.5772
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Rua+Central+da+Corujeira+72+Porto",
+            "wazeLink": "https://waze.com/ul?q=Rua+Central+da+Corujeira+72+Porto",
+            "image": "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80",
+            "notes": "Morada: Rua Central da Corujeira 72, Porto, 4300-111 Campanhã.",
+            "distanceFromPrev": "3 km",
+            "timeFromPrev": "15m"
+          },
+          {
+            "id": "ev-f31-9",
+            "timeStart": "18:15",
+            "timeEnd": "20:30",
+            "name": "Gaia Park (Lojas Mercadona & Action)",
+            "description": "Viagem de casa ao Gaia Park (18:15H - 18:30H) para visitar lojas como Mercadona e Action.",
+            "category": "Atividade livre",
+            "address": "Gaia Park, Vila Nova de Gaia (GPS: 41.1215, -8.6085)",
+            "coordinates": {
+              "lat": 41.1215,
+              "lng": -8.6085
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Gaia+Park+Vila+Nova+de+Gaia",
+            "wazeLink": "https://waze.com/ul?q=Gaia+Park+Vila+Nova+de+Gaia",
+            "image": "https://images.unsplash.com/photo-1534452203293-494d7ddbf7e0?auto=format&fit=crop&w=800&q=80",
+            "notes": "Ver lojas Mercadona e Action.",
+            "distanceFromPrev": "7 km",
+            "timeFromPrev": "15m"
+          },
+          {
+            "id": "ev-f31-10",
+            "timeStart": "20:30",
+            "timeEnd": "22:30",
+            "name": "Jantar no Restaurante Temple d'Ouro",
+            "description": "Viagem do Gaia Park para o Cais de Gaia (20:30H - 20:45H) e jantar reservado das 21:00H às 22:30H no Temple d'Ouro.",
+            "category": "Restaurante",
+            "address": "Restaurante Temple d'Ouro, Cais de Gaia (GPS: 41.1378, -8.6131)",
+            "coordinates": {
+              "lat": 41.1378,
+              "lng": -8.6131
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/search?api=1&query=Restaurante+Temple+d+Ouro+Gaia",
+            "wazeLink": "https://waze.com/ul?q=Temple+d+Ouro+Gaia",
+            "image": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
+            "notes": "Jantar das 21:00H às 22:30H.",
+            "distanceFromPrev": "3 km",
+            "timeFromPrev": "15m"
+          },
+          {
+            "id": "ev-f31-11",
+            "timeStart": "22:30",
+            "timeEnd": "23:59",
+            "name": "Passeio Noturno Cais de Gaia & Cais da Ribeira",
+            "description": "Passeio a pé pelo Cais de Gaia e Cais da Ribeira. Regresso a casa para descansar.",
+            "category": "Passeio / Lazer",
+            "address": "Cais de Gaia & Cais da Ribeira, Porto (GPS: 41.1402, -8.6110)",
+            "coordinates": {
+              "lat": 41.1402,
+              "lng": -8.611
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Cais+da+Ribeira+Porto",
+            "wazeLink": "https://waze.com/ul?q=Cais+da+Ribeira+Porto",
+            "image": "https://images.unsplash.com/photo-1555881400-74d7acaacd8b?auto=format&fit=crop&w=800&q=80",
+            "notes": "Passeio na marginal da Ribeira e Gaia. Regresso a casa.",
+            "distanceFromPrev": "0.5 km",
+            "timeFromPrev": "5m"
+          }
+        ]
       },
       "expenses": [],
       "participants": [
@@ -70,7 +784,7 @@
       "name": "Minha Nova Viagem",
       "destination": "Porto",
       "startDate": "2026-07-10",
-      "endDate": "2026-07-13",
+      "endDate": "2026-07-31",
       "description": "",
       "status": "active",
       "homeAddress": "Av. Almirante Reis, Lisboa",
@@ -86,7 +800,218 @@
         "2026-07-10": [],
         "2026-07-11": [],
         "2026-07-12": [],
-        "2026-07-13": []
+        "2026-07-13": [],
+        "2026-07-31": [
+          {
+            "id": "ev-f31-1",
+            "timeStart": "06:20",
+            "timeEnd": "06:40",
+            "name": "Saída de Casa → Aeroporto de Ponta Delgada",
+            "description": "Saída de casa (Açores) em direção ao Aeroporto de Ponta Delgada (PDL).",
+            "category": "Viagem / Na estrada",
+            "address": "Rua dos Lagos 4, Ribeira Grande, Açores (GPS: 37.8133, -25.5335)",
+            "coordinates": {
+              "lat": 37.8133,
+              "lng": -25.5335
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/74tEXRd9h89GzYSt5",
+            "wazeLink": "https://waze.com/ul?q=Rua+dos+Lagos+4+Ribeira+Grande",
+            "image": "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80",
+            "notes": "Saída no máximo às 06:20H para garantir chegada ao aeroporto às 06:40H.",
+            "distanceFromPrev": "0 km",
+            "timeFromPrev": "0m"
+          },
+          {
+            "id": "ev-f31-2",
+            "timeStart": "06:40",
+            "timeEnd": "07:45",
+            "name": "Aeroporto PDL - Check-in & Embarque",
+            "description": "Chegada ao aeroporto de Ponta Delgada (João Paulo II). Raio-X, controlo de segurança e fecho da porta de embarque.",
+            "category": "Voo",
+            "address": "Aeroporto de Ponta Delgada - João Paulo II, Açores (GPS: 37.7493, -25.7104)",
+            "coordinates": {
+              "lat": 37.7493,
+              "lng": -25.7104
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/74tEXRd9h89GzYSt5",
+            "wazeLink": "https://waze.com/ul?q=Aeroporto+Ponta+Delgada",
+            "image": "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=800&q=80",
+            "notes": "Fecho da porta de embarque às 07:45H. Partida do voo às 08:20H.",
+            "distanceFromPrev": "21 km",
+            "timeFromPrev": "20m"
+          },
+          {
+            "id": "ev-f31-3",
+            "timeStart": "08:20",
+            "timeEnd": "11:40",
+            "name": "Voo Ponta Delgada (PDL) ✈️ Porto (OPO)",
+            "description": "Voo direto de Ponta Delgada para o Porto. Duração do voo: 2h20m (chegada ao Porto às 11:40H hora local).",
+            "category": "Voo",
+            "address": "Aeroporto Francisco Sá Carneiro (Porto), Portugal (GPS: 41.2424, -8.6786)",
+            "coordinates": {
+              "lat": 41.2424,
+              "lng": -8.6786
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/BG9CZZQZhxUo4ESc9",
+            "wazeLink": "https://waze.com/ul?q=Aeroporto+Porto",
+            "image": "https://images.unsplash.com/photo-1542296332-2e4473faf563?auto=format&fit=crop&w=800&q=80",
+            "notes": "Duração do voo: 2h20m (+1h de fuso horário do Continente).",
+            "distanceFromPrev": "1500 km",
+            "timeFromPrev": "2h 20m"
+          },
+          {
+            "id": "ev-f31-4",
+            "timeStart": "11:40",
+            "timeEnd": "12:05",
+            "name": "Recolha de Bagagem & Transfer Centauro",
+            "description": "Recolha das malas de porão nas Chegadas do Aeroporto e transporte no transfer da Centauro.",
+            "category": "Rent-a-Car",
+            "address": "Aeroporto do Porto (Chegadas) (GPS: 41.2424, -8.6786)",
+            "coordinates": {
+              "lat": 41.2424,
+              "lng": -8.6786
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/BG9CZZQZhxUo4ESc9",
+            "wazeLink": "https://waze.com/ul?q=Aeroporto+Porto",
+            "image": "https://images.unsplash.com/photo-1556388158-158ea5ccacbd?auto=format&fit=crop&w=800&q=80",
+            "notes": "12:05H - Transfer do Aeroporto para a Rent-a-Car (Centauro) (3 min, 1 km).",
+            "distanceFromPrev": "0 km",
+            "timeFromPrev": "0m"
+          },
+          {
+            "id": "ev-f31-5",
+            "timeStart": "12:05",
+            "timeEnd": "12:15",
+            "name": "Levantamento do Carro na Centauro Rent-a-Car",
+            "description": "Levantar viatura de aluguer na estação da Centauro. Saída prevista às 12:15H.",
+            "category": "Rent-a-Car",
+            "address": "Centauro Rent a Car, Porto (GPS: 41.2380, -8.6720)",
+            "coordinates": {
+              "lat": 41.238,
+              "lng": -8.672
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Centauro+Rent+a+Car+Porto",
+            "wazeLink": "https://waze.com/ul?q=Centauro+Rent+a+Car+Porto",
+            "image": "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=800&q=80",
+            "notes": "Saída da Centauro aproximada: 12:15H.",
+            "distanceFromPrev": "1 km",
+            "timeFromPrev": "3m"
+          },
+          {
+            "id": "ev-f31-6",
+            "timeStart": "12:15",
+            "timeEnd": "13:30",
+            "name": "Almoço na Maia (Opção 1: Mister Churrasco)",
+            "description": "Viagem da Centauro para a Maia (12:15H às 12:25H, 10 min). Almoço no Mister Churrasco (ou opções alternativas). Dar uma volta nos arredores no final.",
+            "category": "Restaurante",
+            "address": "Mister Churrasco, Maia, Portugal (GPS: 41.2325, -8.6218)",
+            "coordinates": {
+              "lat": 41.2325,
+              "lng": -8.6218
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/HRief7r1YAJbxo2W9",
+            "wazeLink": "https://waze.com/ul?q=Mister+Churrasco+Maia",
+            "image": "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80",
+            "notes": "Viagem ~10 min. Opção 1: Mister Churrasco (Google Maps: https://maps.app.goo.gl/HRief7r1YAJbxo2W9).",
+            "distanceFromPrev": "6 km",
+            "timeFromPrev": "10m"
+          },
+          {
+            "id": "ev-f31-7",
+            "timeStart": "13:30",
+            "timeEnd": "17:00",
+            "name": "Parque Nascente Shopping (Compras, Lanche & Carregamento EV)",
+            "description": "Seguida para o Parque Nascente Shopping (13:30H - 13:50H). Compras (~3h) e lanche no final. O carro elétrico fica a carregar no parque do shopping.",
+            "category": "Atividade livre",
+            "address": "Parque Nascente Shopping, Rio Tinto / Porto (GPS: 41.1764, -8.5639)",
+            "coordinates": {
+              "lat": 41.1764,
+              "lng": -8.5639
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Parque+Nascente+Shopping",
+            "wazeLink": "https://waze.com/ul?q=Parque+Nascente+Shopping",
+            "image": "https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5?auto=format&fit=crop&w=800&q=80",
+            "notes": "Viagem 13:30H - 13:50H. Carro a carregar no posto do shopping.",
+            "distanceFromPrev": "12 km",
+            "timeFromPrev": "20m"
+          },
+          {
+            "id": "ev-f31-8",
+            "timeStart": "17:00",
+            "timeEnd": "18:15",
+            "name": "Chegada a Casa, Desfazer Malas & Duche Rápido",
+            "description": "Viagem do shopping para casa (17:00H - 17:15H). Ver a casa, desfazer malas e tomar duche rápido.",
+            "category": "Hotel",
+            "address": "Rua Central da Corujeira 72, 4300-111 Campanhã, Porto (GPS: 41.1578, -8.5772)",
+            "coordinates": {
+              "lat": 41.1578,
+              "lng": -8.5772
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Rua+Central+da+Corujeira+72+Porto",
+            "wazeLink": "https://waze.com/ul?q=Rua+Central+da+Corujeira+72+Porto",
+            "image": "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80",
+            "notes": "Morada: Rua Central da Corujeira 72, Porto, 4300-111 Campanhã.",
+            "distanceFromPrev": "3 km",
+            "timeFromPrev": "15m"
+          },
+          {
+            "id": "ev-f31-9",
+            "timeStart": "18:15",
+            "timeEnd": "20:30",
+            "name": "Gaia Park (Lojas Mercadona & Action)",
+            "description": "Viagem de casa ao Gaia Park (18:15H - 18:30H) para visitar lojas como Mercadona e Action.",
+            "category": "Atividade livre",
+            "address": "Gaia Park, Vila Nova de Gaia (GPS: 41.1215, -8.6085)",
+            "coordinates": {
+              "lat": 41.1215,
+              "lng": -8.6085
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Gaia+Park+Vila+Nova+de+Gaia",
+            "wazeLink": "https://waze.com/ul?q=Gaia+Park+Vila+Nova+de+Gaia",
+            "image": "https://images.unsplash.com/photo-1534452203293-494d7ddbf7e0?auto=format&fit=crop&w=800&q=80",
+            "notes": "Ver lojas Mercadona e Action.",
+            "distanceFromPrev": "7 km",
+            "timeFromPrev": "15m"
+          },
+          {
+            "id": "ev-f31-10",
+            "timeStart": "20:30",
+            "timeEnd": "22:30",
+            "name": "Jantar no Restaurante Temple d'Ouro",
+            "description": "Viagem do Gaia Park para o Cais de Gaia (20:30H - 20:45H) e jantar reservado das 21:00H às 22:30H no Temple d'Ouro.",
+            "category": "Restaurante",
+            "address": "Restaurante Temple d'Ouro, Cais de Gaia (GPS: 41.1378, -8.6131)",
+            "coordinates": {
+              "lat": 41.1378,
+              "lng": -8.6131
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/search?api=1&query=Restaurante+Temple+d+Ouro+Gaia",
+            "wazeLink": "https://waze.com/ul?q=Temple+d+Ouro+Gaia",
+            "image": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
+            "notes": "Jantar das 21:00H às 22:30H.",
+            "distanceFromPrev": "3 km",
+            "timeFromPrev": "15m"
+          },
+          {
+            "id": "ev-f31-11",
+            "timeStart": "22:30",
+            "timeEnd": "23:59",
+            "name": "Passeio Noturno Cais de Gaia & Cais da Ribeira",
+            "description": "Passeio a pé pelo Cais de Gaia e Cais da Ribeira. Regresso a casa para descansar.",
+            "category": "Passeio / Lazer",
+            "address": "Cais de Gaia & Cais da Ribeira, Porto (GPS: 41.1402, -8.6110)",
+            "coordinates": {
+              "lat": 41.1402,
+              "lng": -8.611
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Cais+da+Ribeira+Porto",
+            "wazeLink": "https://waze.com/ul?q=Cais+da+Ribeira+Porto",
+            "image": "https://images.unsplash.com/photo-1555881400-74d7acaacd8b?auto=format&fit=crop&w=800&q=80",
+            "notes": "Passeio na marginal da Ribeira e Gaia. Regresso a casa.",
+            "distanceFromPrev": "0.5 km",
+            "timeFromPrev": "5m"
+          }
+        ]
       },
       "expenses": [],
       "participants": [
@@ -103,7 +1028,7 @@
       "name": "Trip Test",
       "destination": "Lisbon",
       "startDate": "2026-07-10",
-      "endDate": "2026-07-13",
+      "endDate": "2026-07-31",
       "description": "Test trip creation",
       "status": "active",
       "homeAddress": "",
@@ -119,7 +1044,218 @@
         "2026-07-10": [],
         "2026-07-11": [],
         "2026-07-12": [],
-        "2026-07-13": []
+        "2026-07-13": [],
+        "2026-07-31": [
+          {
+            "id": "ev-f31-1",
+            "timeStart": "06:20",
+            "timeEnd": "06:40",
+            "name": "Saída de Casa → Aeroporto de Ponta Delgada",
+            "description": "Saída de casa (Açores) em direção ao Aeroporto de Ponta Delgada (PDL).",
+            "category": "Viagem / Na estrada",
+            "address": "Rua dos Lagos 4, Ribeira Grande, Açores (GPS: 37.8133, -25.5335)",
+            "coordinates": {
+              "lat": 37.8133,
+              "lng": -25.5335
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/74tEXRd9h89GzYSt5",
+            "wazeLink": "https://waze.com/ul?q=Rua+dos+Lagos+4+Ribeira+Grande",
+            "image": "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80",
+            "notes": "Saída no máximo às 06:20H para garantir chegada ao aeroporto às 06:40H.",
+            "distanceFromPrev": "0 km",
+            "timeFromPrev": "0m"
+          },
+          {
+            "id": "ev-f31-2",
+            "timeStart": "06:40",
+            "timeEnd": "07:45",
+            "name": "Aeroporto PDL - Check-in & Embarque",
+            "description": "Chegada ao aeroporto de Ponta Delgada (João Paulo II). Raio-X, controlo de segurança e fecho da porta de embarque.",
+            "category": "Voo",
+            "address": "Aeroporto de Ponta Delgada - João Paulo II, Açores (GPS: 37.7493, -25.7104)",
+            "coordinates": {
+              "lat": 37.7493,
+              "lng": -25.7104
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/74tEXRd9h89GzYSt5",
+            "wazeLink": "https://waze.com/ul?q=Aeroporto+Ponta+Delgada",
+            "image": "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=800&q=80",
+            "notes": "Fecho da porta de embarque às 07:45H. Partida do voo às 08:20H.",
+            "distanceFromPrev": "21 km",
+            "timeFromPrev": "20m"
+          },
+          {
+            "id": "ev-f31-3",
+            "timeStart": "08:20",
+            "timeEnd": "11:40",
+            "name": "Voo Ponta Delgada (PDL) ✈️ Porto (OPO)",
+            "description": "Voo direto de Ponta Delgada para o Porto. Duração do voo: 2h20m (chegada ao Porto às 11:40H hora local).",
+            "category": "Voo",
+            "address": "Aeroporto Francisco Sá Carneiro (Porto), Portugal (GPS: 41.2424, -8.6786)",
+            "coordinates": {
+              "lat": 41.2424,
+              "lng": -8.6786
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/BG9CZZQZhxUo4ESc9",
+            "wazeLink": "https://waze.com/ul?q=Aeroporto+Porto",
+            "image": "https://images.unsplash.com/photo-1542296332-2e4473faf563?auto=format&fit=crop&w=800&q=80",
+            "notes": "Duração do voo: 2h20m (+1h de fuso horário do Continente).",
+            "distanceFromPrev": "1500 km",
+            "timeFromPrev": "2h 20m"
+          },
+          {
+            "id": "ev-f31-4",
+            "timeStart": "11:40",
+            "timeEnd": "12:05",
+            "name": "Recolha de Bagagem & Transfer Centauro",
+            "description": "Recolha das malas de porão nas Chegadas do Aeroporto e transporte no transfer da Centauro.",
+            "category": "Rent-a-Car",
+            "address": "Aeroporto do Porto (Chegadas) (GPS: 41.2424, -8.6786)",
+            "coordinates": {
+              "lat": 41.2424,
+              "lng": -8.6786
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/BG9CZZQZhxUo4ESc9",
+            "wazeLink": "https://waze.com/ul?q=Aeroporto+Porto",
+            "image": "https://images.unsplash.com/photo-1556388158-158ea5ccacbd?auto=format&fit=crop&w=800&q=80",
+            "notes": "12:05H - Transfer do Aeroporto para a Rent-a-Car (Centauro) (3 min, 1 km).",
+            "distanceFromPrev": "0 km",
+            "timeFromPrev": "0m"
+          },
+          {
+            "id": "ev-f31-5",
+            "timeStart": "12:05",
+            "timeEnd": "12:15",
+            "name": "Levantamento do Carro na Centauro Rent-a-Car",
+            "description": "Levantar viatura de aluguer na estação da Centauro. Saída prevista às 12:15H.",
+            "category": "Rent-a-Car",
+            "address": "Centauro Rent a Car, Porto (GPS: 41.2380, -8.6720)",
+            "coordinates": {
+              "lat": 41.238,
+              "lng": -8.672
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Centauro+Rent+a+Car+Porto",
+            "wazeLink": "https://waze.com/ul?q=Centauro+Rent+a+Car+Porto",
+            "image": "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=800&q=80",
+            "notes": "Saída da Centauro aproximada: 12:15H.",
+            "distanceFromPrev": "1 km",
+            "timeFromPrev": "3m"
+          },
+          {
+            "id": "ev-f31-6",
+            "timeStart": "12:15",
+            "timeEnd": "13:30",
+            "name": "Almoço na Maia (Opção 1: Mister Churrasco)",
+            "description": "Viagem da Centauro para a Maia (12:15H às 12:25H, 10 min). Almoço no Mister Churrasco (ou opções alternativas). Dar uma volta nos arredores no final.",
+            "category": "Restaurante",
+            "address": "Mister Churrasco, Maia, Portugal (GPS: 41.2325, -8.6218)",
+            "coordinates": {
+              "lat": 41.2325,
+              "lng": -8.6218
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/HRief7r1YAJbxo2W9",
+            "wazeLink": "https://waze.com/ul?q=Mister+Churrasco+Maia",
+            "image": "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80",
+            "notes": "Viagem ~10 min. Opção 1: Mister Churrasco (Google Maps: https://maps.app.goo.gl/HRief7r1YAJbxo2W9).",
+            "distanceFromPrev": "6 km",
+            "timeFromPrev": "10m"
+          },
+          {
+            "id": "ev-f31-7",
+            "timeStart": "13:30",
+            "timeEnd": "17:00",
+            "name": "Parque Nascente Shopping (Compras, Lanche & Carregamento EV)",
+            "description": "Seguida para o Parque Nascente Shopping (13:30H - 13:50H). Compras (~3h) e lanche no final. O carro elétrico fica a carregar no parque do shopping.",
+            "category": "Atividade livre",
+            "address": "Parque Nascente Shopping, Rio Tinto / Porto (GPS: 41.1764, -8.5639)",
+            "coordinates": {
+              "lat": 41.1764,
+              "lng": -8.5639
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Parque+Nascente+Shopping",
+            "wazeLink": "https://waze.com/ul?q=Parque+Nascente+Shopping",
+            "image": "https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5?auto=format&fit=crop&w=800&q=80",
+            "notes": "Viagem 13:30H - 13:50H. Carro a carregar no posto do shopping.",
+            "distanceFromPrev": "12 km",
+            "timeFromPrev": "20m"
+          },
+          {
+            "id": "ev-f31-8",
+            "timeStart": "17:00",
+            "timeEnd": "18:15",
+            "name": "Chegada a Casa, Desfazer Malas & Duche Rápido",
+            "description": "Viagem do shopping para casa (17:00H - 17:15H). Ver a casa, desfazer malas e tomar duche rápido.",
+            "category": "Hotel",
+            "address": "Rua Central da Corujeira 72, 4300-111 Campanhã, Porto (GPS: 41.1578, -8.5772)",
+            "coordinates": {
+              "lat": 41.1578,
+              "lng": -8.5772
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Rua+Central+da+Corujeira+72+Porto",
+            "wazeLink": "https://waze.com/ul?q=Rua+Central+da+Corujeira+72+Porto",
+            "image": "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80",
+            "notes": "Morada: Rua Central da Corujeira 72, Porto, 4300-111 Campanhã.",
+            "distanceFromPrev": "3 km",
+            "timeFromPrev": "15m"
+          },
+          {
+            "id": "ev-f31-9",
+            "timeStart": "18:15",
+            "timeEnd": "20:30",
+            "name": "Gaia Park (Lojas Mercadona & Action)",
+            "description": "Viagem de casa ao Gaia Park (18:15H - 18:30H) para visitar lojas como Mercadona e Action.",
+            "category": "Atividade livre",
+            "address": "Gaia Park, Vila Nova de Gaia (GPS: 41.1215, -8.6085)",
+            "coordinates": {
+              "lat": 41.1215,
+              "lng": -8.6085
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Gaia+Park+Vila+Nova+de+Gaia",
+            "wazeLink": "https://waze.com/ul?q=Gaia+Park+Vila+Nova+de+Gaia",
+            "image": "https://images.unsplash.com/photo-1534452203293-494d7ddbf7e0?auto=format&fit=crop&w=800&q=80",
+            "notes": "Ver lojas Mercadona e Action.",
+            "distanceFromPrev": "7 km",
+            "timeFromPrev": "15m"
+          },
+          {
+            "id": "ev-f31-10",
+            "timeStart": "20:30",
+            "timeEnd": "22:30",
+            "name": "Jantar no Restaurante Temple d'Ouro",
+            "description": "Viagem do Gaia Park para o Cais de Gaia (20:30H - 20:45H) e jantar reservado das 21:00H às 22:30H no Temple d'Ouro.",
+            "category": "Restaurante",
+            "address": "Restaurante Temple d'Ouro, Cais de Gaia (GPS: 41.1378, -8.6131)",
+            "coordinates": {
+              "lat": 41.1378,
+              "lng": -8.6131
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/search?api=1&query=Restaurante+Temple+d+Ouro+Gaia",
+            "wazeLink": "https://waze.com/ul?q=Temple+d+Ouro+Gaia",
+            "image": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
+            "notes": "Jantar das 21:00H às 22:30H.",
+            "distanceFromPrev": "3 km",
+            "timeFromPrev": "15m"
+          },
+          {
+            "id": "ev-f31-11",
+            "timeStart": "22:30",
+            "timeEnd": "23:59",
+            "name": "Passeio Noturno Cais de Gaia & Cais da Ribeira",
+            "description": "Passeio a pé pelo Cais de Gaia e Cais da Ribeira. Regresso a casa para descansar.",
+            "category": "Passeio / Lazer",
+            "address": "Cais de Gaia & Cais da Ribeira, Porto (GPS: 41.1402, -8.6110)",
+            "coordinates": {
+              "lat": 41.1402,
+              "lng": -8.611
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Cais+da+Ribeira+Porto",
+            "wazeLink": "https://waze.com/ul?q=Cais+da+Ribeira+Porto",
+            "image": "https://images.unsplash.com/photo-1555881400-74d7acaacd8b?auto=format&fit=crop&w=800&q=80",
+            "notes": "Passeio na marginal da Ribeira e Gaia. Regresso a casa.",
+            "distanceFromPrev": "0.5 km",
+            "timeFromPrev": "5m"
+          }
+        ]
       },
       "expenses": [],
       "participants": [
@@ -136,7 +1272,7 @@
       "name": "Road Trip Costa Alentejana 🌊",
       "destination": "Lisboa → Sines → Sagres",
       "startDate": "2026-07-10",
-      "endDate": "2026-07-13",
+      "endDate": "2026-07-31",
       "description": "Uma viagem inesquecível de carro elétrico ao longo das falésias selvagens, praias deslumbrantes e vilas costeiras do Alentejo e Algarve ocidental.",
       "status": "active",
       "homeAddress": "Av. Almirante Reis, Lisboa",
@@ -425,6 +1561,217 @@
             "notes": "Fazer uma paragem técnica para carregar se necessário (ex: postos rápidos em Alcácer do Sal).",
             "distanceFromPrev": "320 km",
             "timeFromPrev": "3h 10m"
+          }
+        ],
+        "2026-07-31": [
+          {
+            "id": "ev-f31-1",
+            "timeStart": "06:20",
+            "timeEnd": "06:40",
+            "name": "Saída de Casa → Aeroporto de Ponta Delgada",
+            "description": "Saída de casa (Açores) em direção ao Aeroporto de Ponta Delgada (PDL).",
+            "category": "Viagem / Na estrada",
+            "address": "Rua dos Lagos 4, Ribeira Grande, Açores (GPS: 37.8133, -25.5335)",
+            "coordinates": {
+              "lat": 37.8133,
+              "lng": -25.5335
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/74tEXRd9h89GzYSt5",
+            "wazeLink": "https://waze.com/ul?q=Rua+dos+Lagos+4+Ribeira+Grande",
+            "image": "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80",
+            "notes": "Saída no máximo às 06:20H para garantir chegada ao aeroporto às 06:40H.",
+            "distanceFromPrev": "0 km",
+            "timeFromPrev": "0m"
+          },
+          {
+            "id": "ev-f31-2",
+            "timeStart": "06:40",
+            "timeEnd": "07:45",
+            "name": "Aeroporto PDL - Check-in & Embarque",
+            "description": "Chegada ao aeroporto de Ponta Delgada (João Paulo II). Raio-X, controlo de segurança e fecho da porta de embarque.",
+            "category": "Voo",
+            "address": "Aeroporto de Ponta Delgada - João Paulo II, Açores (GPS: 37.7493, -25.7104)",
+            "coordinates": {
+              "lat": 37.7493,
+              "lng": -25.7104
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/74tEXRd9h89GzYSt5",
+            "wazeLink": "https://waze.com/ul?q=Aeroporto+Ponta+Delgada",
+            "image": "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=800&q=80",
+            "notes": "Fecho da porta de embarque às 07:45H. Partida do voo às 08:20H.",
+            "distanceFromPrev": "21 km",
+            "timeFromPrev": "20m"
+          },
+          {
+            "id": "ev-f31-3",
+            "timeStart": "08:20",
+            "timeEnd": "11:40",
+            "name": "Voo Ponta Delgada (PDL) ✈️ Porto (OPO)",
+            "description": "Voo direto de Ponta Delgada para o Porto. Duração do voo: 2h20m (chegada ao Porto às 11:40H hora local).",
+            "category": "Voo",
+            "address": "Aeroporto Francisco Sá Carneiro (Porto), Portugal (GPS: 41.2424, -8.6786)",
+            "coordinates": {
+              "lat": 41.2424,
+              "lng": -8.6786
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/BG9CZZQZhxUo4ESc9",
+            "wazeLink": "https://waze.com/ul?q=Aeroporto+Porto",
+            "image": "https://images.unsplash.com/photo-1542296332-2e4473faf563?auto=format&fit=crop&w=800&q=80",
+            "notes": "Duração do voo: 2h20m (+1h de fuso horário do Continente).",
+            "distanceFromPrev": "1500 km",
+            "timeFromPrev": "2h 20m"
+          },
+          {
+            "id": "ev-f31-4",
+            "timeStart": "11:40",
+            "timeEnd": "12:05",
+            "name": "Recolha de Bagagem & Transfer Centauro",
+            "description": "Recolha das malas de porão nas Chegadas do Aeroporto e transporte no transfer da Centauro.",
+            "category": "Rent-a-Car",
+            "address": "Aeroporto do Porto (Chegadas) (GPS: 41.2424, -8.6786)",
+            "coordinates": {
+              "lat": 41.2424,
+              "lng": -8.6786
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/BG9CZZQZhxUo4ESc9",
+            "wazeLink": "https://waze.com/ul?q=Aeroporto+Porto",
+            "image": "https://images.unsplash.com/photo-1556388158-158ea5ccacbd?auto=format&fit=crop&w=800&q=80",
+            "notes": "12:05H - Transfer do Aeroporto para a Rent-a-Car (Centauro) (3 min, 1 km).",
+            "distanceFromPrev": "0 km",
+            "timeFromPrev": "0m"
+          },
+          {
+            "id": "ev-f31-5",
+            "timeStart": "12:05",
+            "timeEnd": "12:15",
+            "name": "Levantamento do Carro na Centauro Rent-a-Car",
+            "description": "Levantar viatura de aluguer na estação da Centauro. Saída prevista às 12:15H.",
+            "category": "Rent-a-Car",
+            "address": "Centauro Rent a Car, Porto (GPS: 41.2380, -8.6720)",
+            "coordinates": {
+              "lat": 41.238,
+              "lng": -8.672
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Centauro+Rent+a+Car+Porto",
+            "wazeLink": "https://waze.com/ul?q=Centauro+Rent+a+Car+Porto",
+            "image": "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=800&q=80",
+            "notes": "Saída da Centauro aproximada: 12:15H.",
+            "distanceFromPrev": "1 km",
+            "timeFromPrev": "3m"
+          },
+          {
+            "id": "ev-f31-6",
+            "timeStart": "12:15",
+            "timeEnd": "13:30",
+            "name": "Almoço na Maia (Opção 1: Mister Churrasco)",
+            "description": "Viagem da Centauro para a Maia (12:15H às 12:25H, 10 min). Almoço no Mister Churrasco (ou opções alternativas). Dar uma volta nos arredores no final.",
+            "category": "Restaurante",
+            "address": "Mister Churrasco, Maia, Portugal (GPS: 41.2325, -8.6218)",
+            "coordinates": {
+              "lat": 41.2325,
+              "lng": -8.6218
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/HRief7r1YAJbxo2W9",
+            "wazeLink": "https://waze.com/ul?q=Mister+Churrasco+Maia",
+            "image": "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80",
+            "notes": "Viagem ~10 min. Opção 1: Mister Churrasco (Google Maps: https://maps.app.goo.gl/HRief7r1YAJbxo2W9).",
+            "distanceFromPrev": "6 km",
+            "timeFromPrev": "10m"
+          },
+          {
+            "id": "ev-f31-7",
+            "timeStart": "13:30",
+            "timeEnd": "17:00",
+            "name": "Parque Nascente Shopping (Compras, Lanche & Carregamento EV)",
+            "description": "Seguida para o Parque Nascente Shopping (13:30H - 13:50H). Compras (~3h) e lanche no final. O carro elétrico fica a carregar no parque do shopping.",
+            "category": "Atividade livre",
+            "address": "Parque Nascente Shopping, Rio Tinto / Porto (GPS: 41.1764, -8.5639)",
+            "coordinates": {
+              "lat": 41.1764,
+              "lng": -8.5639
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Parque+Nascente+Shopping",
+            "wazeLink": "https://waze.com/ul?q=Parque+Nascente+Shopping",
+            "image": "https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5?auto=format&fit=crop&w=800&q=80",
+            "notes": "Viagem 13:30H - 13:50H. Carro a carregar no posto do shopping.",
+            "distanceFromPrev": "12 km",
+            "timeFromPrev": "20m"
+          },
+          {
+            "id": "ev-f31-8",
+            "timeStart": "17:00",
+            "timeEnd": "18:15",
+            "name": "Chegada a Casa, Desfazer Malas & Duche Rápido",
+            "description": "Viagem do shopping para casa (17:00H - 17:15H). Ver a casa, desfazer malas e tomar duche rápido.",
+            "category": "Hotel",
+            "address": "Rua Central da Corujeira 72, 4300-111 Campanhã, Porto (GPS: 41.1578, -8.5772)",
+            "coordinates": {
+              "lat": 41.1578,
+              "lng": -8.5772
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Rua+Central+da+Corujeira+72+Porto",
+            "wazeLink": "https://waze.com/ul?q=Rua+Central+da+Corujeira+72+Porto",
+            "image": "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80",
+            "notes": "Morada: Rua Central da Corujeira 72, Porto, 4300-111 Campanhã.",
+            "distanceFromPrev": "3 km",
+            "timeFromPrev": "15m"
+          },
+          {
+            "id": "ev-f31-9",
+            "timeStart": "18:15",
+            "timeEnd": "20:30",
+            "name": "Gaia Park (Lojas Mercadona & Action)",
+            "description": "Viagem de casa ao Gaia Park (18:15H - 18:30H) para visitar lojas como Mercadona e Action.",
+            "category": "Atividade livre",
+            "address": "Gaia Park, Vila Nova de Gaia (GPS: 41.1215, -8.6085)",
+            "coordinates": {
+              "lat": 41.1215,
+              "lng": -8.6085
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Gaia+Park+Vila+Nova+de+Gaia",
+            "wazeLink": "https://waze.com/ul?q=Gaia+Park+Vila+Nova+de+Gaia",
+            "image": "https://images.unsplash.com/photo-1534452203293-494d7ddbf7e0?auto=format&fit=crop&w=800&q=80",
+            "notes": "Ver lojas Mercadona e Action.",
+            "distanceFromPrev": "7 km",
+            "timeFromPrev": "15m"
+          },
+          {
+            "id": "ev-f31-10",
+            "timeStart": "20:30",
+            "timeEnd": "22:30",
+            "name": "Jantar no Restaurante Temple d'Ouro",
+            "description": "Viagem do Gaia Park para o Cais de Gaia (20:30H - 20:45H) e jantar reservado das 21:00H às 22:30H no Temple d'Ouro.",
+            "category": "Restaurante",
+            "address": "Restaurante Temple d'Ouro, Cais de Gaia (GPS: 41.1378, -8.6131)",
+            "coordinates": {
+              "lat": 41.1378,
+              "lng": -8.6131
+            },
+            "googleMapsLink": "https://maps.app.goo.gl/search?api=1&query=Restaurante+Temple+d+Ouro+Gaia",
+            "wazeLink": "https://waze.com/ul?q=Temple+d+Ouro+Gaia",
+            "image": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
+            "notes": "Jantar das 21:00H às 22:30H.",
+            "distanceFromPrev": "3 km",
+            "timeFromPrev": "15m"
+          },
+          {
+            "id": "ev-f31-11",
+            "timeStart": "22:30",
+            "timeEnd": "23:59",
+            "name": "Passeio Noturno Cais de Gaia & Cais da Ribeira",
+            "description": "Passeio a pé pelo Cais de Gaia e Cais da Ribeira. Regresso a casa para descansar.",
+            "category": "Passeio / Lazer",
+            "address": "Cais de Gaia & Cais da Ribeira, Porto (GPS: 41.1402, -8.6110)",
+            "coordinates": {
+              "lat": 41.1402,
+              "lng": -8.611
+            },
+            "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Cais+da+Ribeira+Porto",
+            "wazeLink": "https://waze.com/ul?q=Cais+da+Ribeira+Porto",
+            "image": "https://images.unsplash.com/photo-1555881400-74d7acaacd8b?auto=format&fit=crop&w=800&q=80",
+            "notes": "Passeio na marginal da Ribeira e Gaia. Regresso a casa.",
+            "distanceFromPrev": "0.5 km",
+            "timeFromPrev": "5m"
           }
         ]
       },
