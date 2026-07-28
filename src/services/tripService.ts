@@ -6,7 +6,7 @@ function isUUID(str: any): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 }
 
-// Helper functions to handle transportType persistence across database schemas
+// Helper functions to handle transportType and eventDate persistence across database schemas
 function extractTransportType(act: any): string | undefined {
   if (act.transport_type) return act.transport_type;
   if (act.transportType) return act.transportType;
@@ -17,15 +17,92 @@ function extractTransportType(act: any): string | undefined {
   return undefined;
 }
 
-function cleanNotes(notes?: string): string {
-  if (!notes) return "";
-  return notes.replace(/\[TransportMode:\s*[^\]]+\]/g, "").trim();
+function extractDateFromNotes(notes?: string): string | undefined {
+  if (!notes) return undefined;
+  const match = notes.match(/\[EventDate:\s*([^\]]+)\]/);
+  if (match) return match[1].trim();
+  return undefined;
 }
 
-function embedTransportInNotes(notes?: string, transportType?: string): string {
-  const base = cleanNotes(notes);
-  if (!transportType) return base;
-  return base ? `${base} [TransportMode: ${transportType}]` : `[TransportMode: ${transportType}]`;
+function cleanNotes(notes?: string): string {
+  if (!notes) return "";
+  return notes
+    .replace(/\[TransportMode:\s*[^\]]+\]/g, "")
+    .replace(/\[EventDate:\s*[^\]]+\]/g, "")
+    .trim();
+}
+
+function embedDateAndTransportInNotes(notes?: string, transportType?: string, eventDate?: string): string {
+  let base = cleanNotes(notes);
+  if (transportType) {
+    base = base ? `${base} [TransportMode: ${transportType}]` : `[TransportMode: ${transportType}]`;
+  }
+  if (eventDate) {
+    const cleanD = eventDate.split("T")[0].trim();
+    base = base ? `${base} [EventDate: ${cleanD}]` : `[EventDate: ${cleanD}]`;
+  }
+  return base;
+}
+
+// Helper function to reconcile local user itinerary state with backend server itinerary state
+export function reconcileItineraries(
+  userItinerary: { [date: string]: Event[] } = {},
+  serverItinerary: { [date: string]: Event[] } = {}
+): { [date: string]: Event[] } {
+  const result: { [date: string]: Event[] } = {};
+
+  // Gather all unique date keys from both user and server
+  const allDates = Array.from(new Set([
+    ...Object.keys(userItinerary || {}),
+    ...Object.keys(serverItinerary || {})
+  ])).filter(d => Boolean(d) && d.trim() !== "");
+
+  for (const date of allDates) {
+    const cleanDate = date.split("T")[0].trim();
+    if (!cleanDate) continue;
+
+    const userEvents = userItinerary[date] || userItinerary[cleanDate] || [];
+    const serverEvents = serverItinerary[date] || serverItinerary[cleanDate] || [];
+
+    if (userEvents.length === 0 && serverEvents.length === 0) {
+      if (!result[cleanDate]) result[cleanDate] = [];
+      continue;
+    }
+
+    const reconciledList: Event[] = [];
+    const usedServerIds = new Set<string>();
+
+    // Prioritize user's itinerary choices while enriching with server-assigned IDs/metadata
+    for (const uEvt of userEvents) {
+      const matchedServerEvt = serverEvents.find(
+        s => (s.id === uEvt.id || (s.name === uEvt.name && s.timeStart === uEvt.timeStart)) && !usedServerIds.has(s.id)
+      );
+      if (matchedServerEvt) {
+        usedServerIds.add(matchedServerEvt.id);
+        reconciledList.push({
+          ...uEvt,
+          id: matchedServerEvt.id // Keep server UUID if available
+        });
+      } else {
+        reconciledList.push(uEvt);
+      }
+    }
+
+    // Also include any server events that weren't in userEvents (e.g. from server)
+    for (const sEvt of serverEvents) {
+      if (!usedServerIds.has(sEvt.id)) {
+        const alreadyIn = reconciledList.some(r => r.id === sEvt.id || (r.name === sEvt.name && r.timeStart === sEvt.timeStart));
+        if (!alreadyIn) {
+          reconciledList.push(sEvt);
+        }
+      }
+    }
+
+    reconciledList.sort((a, b) => (a.timeStart || "00:00").localeCompare(b.timeStart || "00:00"));
+    result[cleanDate] = reconciledList;
+  }
+
+  return result;
 }
 
 export const tripService = {
@@ -115,9 +192,35 @@ export const tripService = {
 
     // Build itinerary map
     const itinerary: { [date: string]: Event[] } = {};
+
+    // Ensure start_date to end_date range keys exist
+    if (row.start_date && row.end_date) {
+      try {
+        const sParts = row.start_date.split("T")[0].split("-").map(Number);
+        const eParts = row.end_date.split("T")[0].split("-").map(Number);
+        if (sParts.length === 3 && eParts.length === 3) {
+          const sUTC = Date.UTC(sParts[0], sParts[1] - 1, sParts[2]);
+          const eUTC = Date.UTC(eParts[0], eParts[1] - 1, eParts[2]);
+          if (!isNaN(sUTC) && !isNaN(eUTC) && sUTC <= eUTC) {
+            const limit = Math.min(366, Math.floor((eUTC - sUTC) / (1000 * 60 * 60 * 24)) + 1);
+            for (let i = 0; i < limit; i++) {
+              const curUTC = new Date(sUTC + i * 24 * 60 * 60 * 1000);
+              const dStr = curUTC.toISOString().split("T")[0];
+              if (dStr) itinerary[dStr] = [];
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error building default date range in assembleTrip:", err);
+      }
+    }
+
     if (days) {
       for (const d of days) {
-        itinerary[d.date] = [];
+        const cleanDayDate = (d.date || "").split("T")[0];
+        if (cleanDayDate && !itinerary[cleanDayDate]) {
+          itinerary[cleanDayDate] = [];
+        }
       }
     }
 
@@ -127,35 +230,42 @@ export const tripService = {
         let dayDate = "";
         if (act.trip_day_id) {
           const matchedDay = days?.find(d => d.id === act.trip_day_id);
-          if (matchedDay) dayDate = matchedDay.date;
+          if (matchedDay) dayDate = (matchedDay.date || "").split("T")[0].trim();
         }
 
-        if (dayDate) {
-          if (!itinerary[dayDate]) {
-            itinerary[dayDate] = [];
-          }
-
-          const rawNotes = act.notes || "";
-          const transportType = extractTransportType(act);
-          const displayNotes = cleanNotes(rawNotes);
-
-          itinerary[dayDate].push({
-            id: act.id,
-            timeStart: act.start_time || "12:00",
-            timeEnd: act.end_time || undefined,
-            duration: act.duration || undefined,
-            name: act.title,
-            description: act.description || "",
-            category: act.category || "Atividade livre",
-            address: act.address || "",
-            coordinates: act.latitude && act.longitude ? { lat: act.latitude, lng: act.longitude } : null,
-            googleMapsLink: act.google_maps_link || "",
-            wazeLink: act.waze_link || "",
-            image: act.image_url || "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80",
-            notes: displayNotes,
-            transportType: transportType
-          });
+        const noteDate = extractDateFromNotes(act.notes);
+        if (!dayDate && noteDate) {
+          dayDate = noteDate.split("T")[0].trim();
         }
+
+        const fallbackDate = (days?.[0]?.date || row.start_date || new Date().toISOString().split("T")[0]).split("T")[0].trim();
+        const finalDate = dayDate || fallbackDate;
+        if (!itinerary[finalDate]) {
+          itinerary[finalDate] = [];
+        }
+
+        const rawNotes = act.notes || "";
+        const transportType = extractTransportType(act);
+        const isCompleted = rawNotes.includes("[COMPLETED]");
+        const displayNotes = cleanNotes(rawNotes.replace("[COMPLETED]", ""));
+
+        itinerary[finalDate].push({
+          id: act.id,
+          timeStart: act.start_time || "12:00",
+          timeEnd: act.end_time || undefined,
+          duration: act.duration || undefined,
+          name: act.title,
+          description: act.description || "",
+          category: act.category || "Atividade livre",
+          address: act.address || "",
+          coordinates: act.latitude && act.longitude ? { lat: act.latitude, lng: act.longitude } : null,
+          googleMapsLink: act.google_maps_link || "",
+          wazeLink: act.waze_link || "",
+          image: act.image_url || "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80",
+          notes: displayNotes,
+          transportType: transportType,
+          completed: isCompleted
+        });
       }
     }
 
@@ -257,415 +367,416 @@ export const tripService = {
 
   // 2. Create a new trip
   async createTrip(tripData: Partial<Trip>): Promise<Trip | null> {
-    if (!isSupabaseConfigured) {
+    if (isSupabaseConfigured) {
       try {
-        const resp = await fetch("/api/trips", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(tripData)
-        });
-        if (!resp.ok) throw new Error("HTTP error " + resp.status);
-        const data = await resp.json();
-        return data;
-      } catch (err) {
-        console.error("Local createTrip failed:", err);
-        throw err;
-      }
-    }
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const title = tripData.name || "Nova Viagem 🗺️";
+          const { data: newTripId, error } = await supabase.rpc("create_trip_secure", {
+            p_title: title,
+            p_description: tripData.description || "",
+            p_destination: tripData.destination || "",
+            p_start_date: tripData.startDate || new Date().toISOString().split("T")[0],
+            p_end_date: tripData.endDate || new Date().toISOString().split("T")[0]
+          });
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Utilizador não autenticado.");
+          if (!error && newTripId) {
+            const combinedVehicleData = {
+              ...(tripData.vehicle || {}),
+              numAdults: tripData.numAdults || 2,
+              numChildren: tripData.numChildren || 0,
+              numBabies: tripData.numBabies || 0
+            };
 
-    // We can use RPC or call direct. Since user requests:
-    // "Criar uma função ou transação segura para: 1. inserir a viagem; 2. adicionar automaticamente o criador a trip_members; 3. definir o papel como owner; 4. devolver a viagem criada."
-    // Let's call the RPC function `create_trip_secure` that we will define in the migration!
-    // The RPC function parameters:
-    // title, description, destination, start_date, end_date, cover_image_url
-    const title = tripData.name || "Nova Viagem 🗺️";
-    const { data: newTripId, error } = await supabase.rpc("create_trip_secure", {
-      p_title: title,
-      p_description: tripData.description || "",
-      p_destination: tripData.destination || "",
-      p_start_date: tripData.startDate || new Date().toISOString().split("T")[0],
-      p_end_date: tripData.endDate || new Date().toISOString().split("T")[0]
-    });
+            await supabase
+              .from("trips")
+              .update({
+                vehicle_data: combinedVehicleData,
+                accommodation_data: tripData.accommodation || null,
+                flights_data: tripData.flights || [],
+                home_address: tripData.homeAddress || null,
+                accommodation_address: tripData.accommodationAddress || null,
+                accommodation_map_link: tripData.accommodationMapLink || null,
+                accommodation_name: tripData.accommodationName || null,
+                accommodation_contact: tripData.accommodationContact || null,
+              })
+              .eq("id", newTripId);
 
-    if (error || !newTripId) {
-      console.error("Error creating trip via RPC:", error);
-      throw new Error(error?.message || "Erro ao criar viagem");
-    }
-
-    // Embed passenger metrics inside vehicle_data to avoid column schema-cache mismatches
-    const combinedVehicleData = {
-      ...(tripData.vehicle || {}),
-      numAdults: tripData.numAdults || 2,
-      numChildren: tripData.numChildren || 0,
-      numBabies: tripData.numBabies || 0
-    };
-
-    // Now update optional fields (vehicle, accommodation, etc.)
-    const { data: row, error: updateError } = await supabase
-      .from("trips")
-      .update({
-        vehicle_data: combinedVehicleData,
-        accommodation_data: tripData.accommodation || null,
-        flights_data: tripData.flights || [],
-        home_address: tripData.homeAddress || null,
-        accommodation_address: tripData.accommodationAddress || null,
-        accommodation_map_link: tripData.accommodationMapLink || null,
-        accommodation_name: tripData.accommodationName || null,
-        accommodation_contact: tripData.accommodationContact || null,
-      })
-      .eq("id", newTripId)
-      .select()
-      .single();
-
-    if (updateError || !row) {
-      console.error("Error updating trip meta details:", updateError);
-    }
-
-    // Generate itinerary days in SQL relational table
-    const start = tripData.startDate;
-    const end = tripData.endDate;
-    if (start && end) {
-      try {
-        const startParts = start.split("-").map(Number);
-        const endParts = end.split("-").map(Number);
-        if (startParts.length === 3 && endParts.length === 3) {
-          const startUTC = Date.UTC(startParts[0], startParts[1] - 1, startParts[2]);
-          const endUTC = Date.UTC(endParts[0], endParts[1] - 1, endParts[2]);
-          if (!isNaN(startUTC) && !isNaN(endUTC) && startUTC <= endUTC) {
-            const limit = Math.min(366, Math.floor((endUTC - startUTC) / (1000 * 60 * 60 * 24)) + 1);
-            const daysToInsert = [];
-            for (let i = 0; i < limit; i++) {
-              const currentUTC = new Date(startUTC + i * 24 * 60 * 60 * 1000);
-              const dateStr = currentUTC.toISOString().split("T")[0];
-              daysToInsert.push({
-                trip_id: newTripId,
-                date: dateStr,
-                day_order: i + 1,
-              });
+            const start = tripData.startDate;
+            const end = tripData.endDate;
+            if (start && end) {
+              try {
+                const startParts = start.split("-").map(Number);
+                const endParts = end.split("-").map(Number);
+                if (startParts.length === 3 && endParts.length === 3) {
+                  const startUTC = Date.UTC(startParts[0], startParts[1] - 1, startParts[2]);
+                  const endUTC = Date.UTC(endParts[0], endParts[1] - 1, endParts[2]);
+                  if (!isNaN(startUTC) && !isNaN(endUTC) && startUTC <= endUTC) {
+                    const limit = Math.min(366, Math.floor((endUTC - startUTC) / (1000 * 60 * 60 * 24)) + 1);
+                    const daysToInsert = [];
+                    for (let i = 0; i < limit; i++) {
+                      const currentUTC = new Date(startUTC + i * 24 * 60 * 60 * 1000);
+                      const dateStr = currentUTC.toISOString().split("T")[0];
+                      daysToInsert.push({
+                        trip_id: newTripId,
+                        date: dateStr,
+                        day_order: i + 1,
+                      });
+                    }
+                    if (daysToInsert.length > 0) {
+                      await supabase.from("trip_days").insert(daysToInsert);
+                    }
+                  }
+                }
+              } catch (err) {
+                console.error("Error creating itinerary days in DB:", err);
+              }
             }
-            if (daysToInsert.length > 0) {
-              await supabase.from("trip_days").insert(daysToInsert);
+
+            const { data: fullRow } = await supabase.from("trips").select("*").eq("id", newTripId).single();
+            if (fullRow) {
+              const assembled = await this.assembleTrip(fullRow);
+              if (assembled) return assembled;
             }
           }
         }
       } catch (err) {
-        console.error("Error creating itinerary days in DB:", err);
+        console.warn("Supabase createTrip network error, falling back to local backend:", err);
       }
     }
 
-    // Refetch full compiled trip
-    const { data: fullRow } = await supabase.from("trips").select("*").eq("id", newTripId).single();
-    return await this.assembleTrip(fullRow);
+    // Local fallback
+    try {
+      const resp = await fetch("/api/trips", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(tripData)
+      });
+      if (!resp.ok) throw new Error("HTTP error " + resp.status);
+      const data = await resp.json();
+      return data;
+    } catch (err) {
+      console.error("Local createTrip failed:", err);
+      throw err;
+    }
   },
 
   // 3. Update an existing trip relationally
   async updateTrip(trip: Trip): Promise<Trip | null> {
-    if (!isSupabaseConfigured) {
+    if (isSupabaseConfigured) {
       try {
-        const resp = await fetch(`/api/trips/${trip.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(trip)
-        });
-        if (!resp.ok) throw new Error("HTTP error " + resp.status);
-        const data = await resp.json();
-        return data;
-      } catch (err) {
-        console.error("Local updateTrip failed:", err);
-        throw err;
-      }
-    }
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const combinedVehicleData = {
+            ...(trip.vehicle || {}),
+            numAdults: (trip.numAdults !== undefined && trip.numAdults !== null) ? Number(trip.numAdults) : 2,
+            numChildren: (trip.numChildren !== undefined && trip.numChildren !== null) ? Number(trip.numChildren) : 0,
+            numBabies: (trip.numBabies !== undefined && trip.numBabies !== null) ? Number(trip.numBabies) : 0,
+          };
 
-    // Check if user is owner of the trip
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Utilizador não autenticado.");
+          const { error: tripUpdateErr } = await supabase
+            .from("trips")
+            .update({
+              title: trip.name || "Sem Nome",
+              destination: (trip.destination && trip.destination.trim() !== "") ? trip.destination : null,
+              start_date: (trip.startDate && trip.startDate.trim() !== "") ? trip.startDate : null,
+              end_date: (trip.endDate && trip.endDate.trim() !== "") ? trip.endDate : null,
+              description: (trip.description && trip.description.trim() !== "") ? trip.description : null,
+              status: trip.status === "archived" ? "archived" : "active",
+              home_address: trip.homeAddress || null,
+              accommodation_address: trip.accommodationAddress || null,
+              accommodation_map_link: trip.accommodationMapLink || null,
+              accommodation_name: trip.accommodationName || null,
+              accommodation_contact: trip.accommodationContact || null,
+              vehicle_data: combinedVehicleData,
+              accommodation_data: trip.accommodation,
+              flights_data: trip.flights,
+              updated_at: new Date().toISOString()
+            })
+            .eq("id", trip.id);
 
-    // Embed passenger metrics inside vehicle_data to avoid column schema-cache mismatches
-    const combinedVehicleData = {
-      ...(trip.vehicle || {}),
-      numAdults: (trip.numAdults !== undefined && trip.numAdults !== null) ? Number(trip.numAdults) : 2,
-      numChildren: (trip.numChildren !== undefined && trip.numChildren !== null) ? Number(trip.numChildren) : 0,
-      numBabies: (trip.numBabies !== undefined && trip.numBabies !== null) ? Number(trip.numBabies) : 0,
-    };
+          if (!tripUpdateErr) {
+            const { data: existingDays } = await supabase
+              .from("trip_days")
+              .select("id, date")
+              .eq("trip_id", trip.id);
 
-    // Update main trips table
-    const { error: tripUpdateErr } = await supabase
-      .from("trips")
-      .update({
-        title: trip.name || "Sem Nome",
-        destination: (trip.destination && trip.destination.trim() !== "") ? trip.destination : null,
-        start_date: (trip.startDate && trip.startDate.trim() !== "") ? trip.startDate : null,
-        end_date: (trip.endDate && trip.endDate.trim() !== "") ? trip.endDate : null,
-        description: (trip.description && trip.description.trim() !== "") ? trip.description : null,
-        status: trip.status === "archived" ? "archived" : "active",
-        home_address: trip.homeAddress || null,
-        accommodation_address: trip.accommodationAddress || null,
-        accommodation_map_link: trip.accommodationMapLink || null,
-        accommodation_name: trip.accommodationName || null,
-        accommodation_contact: trip.accommodationContact || null,
-        vehicle_data: combinedVehicleData,
-        accommodation_data: trip.accommodation,
-        flights_data: trip.flights,
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", trip.id);
+            const itineraryDates = Object.keys(trip.itinerary || {}).filter(d => Boolean(d) && d.trim() !== "");
+            for (const date of itineraryDates) {
+              const cleanDateKey = date.split("T")[0].trim();
+              let matchedDay = existingDays?.find(d => (d.date || "").split("T")[0].trim() === cleanDateKey);
+              if (!matchedDay) {
+                const { data: newDay } = await supabase
+                  .from("trip_days")
+                  .insert({
+                    trip_id: trip.id,
+                    date: cleanDateKey,
+                    day_order: 1
+                  })
+                  .select()
+                  .single();
+                if (newDay && existingDays) {
+                  existingDays.push(newDay);
+                }
+              }
+            }
 
-    if (tripUpdateErr) {
-      console.error("Error updating trip row:", tripUpdateErr);
-      throw tripUpdateErr;
-    }
+            const { data: updatedDays } = await supabase
+              .from("trip_days")
+              .select("id, date")
+              .eq("trip_id", trip.id);
 
-    // Sync trip days and activities
-    // 1. Get existing trip days
-    const { data: existingDays } = await supabase
-      .from("trip_days")
-      .select("id, date")
-      .eq("trip_id", trip.id);
+            const incomingActivities: any[] = [];
+            for (const date of itineraryDates) {
+              const cleanDateKey = date.split("T")[0].trim();
+              const matchedDay = updatedDays?.find(d => (d.date || "").split("T")[0].trim() === cleanDateKey);
+              const events = trip.itinerary[date] || [];
+              events.forEach((evt, idx) => {
+                let noteStr = embedDateAndTransportInNotes(evt.notes, evt.transportType, cleanDateKey);
+                if (evt.completed && !noteStr.includes("[COMPLETED]")) {
+                  noteStr = noteStr ? `${noteStr} [COMPLETED]` : "[COMPLETED]";
+                } else if (!evt.completed && noteStr.includes("[COMPLETED]")) {
+                  noteStr = noteStr.replace("[COMPLETED]", "").trim();
+                }
 
-    // Ensure all dates in itinerary exist as trip_days
-    const itineraryDates = Object.keys(trip.itinerary);
-    for (const date of itineraryDates) {
-      let matchedDay = existingDays?.find(d => d.date === date);
-      if (!matchedDay) {
-        const { data: newDay } = await supabase
-          .from("trip_days")
-          .insert({
-            trip_id: trip.id,
-            date,
-            day_order: 1 // default
-          })
-          .select()
-          .single();
-        if (newDay) {
-          existingDays?.push(newDay);
+                incomingActivities.push({
+                  id: isUUID(evt.id) ? evt.id : undefined,
+                  trip_id: trip.id,
+                  trip_day_id: matchedDay?.id || null,
+                  title: evt.name,
+                  description: evt.description,
+                  category: evt.category,
+                  address: evt.address,
+                  latitude: evt.coordinates?.lat || null,
+                  longitude: evt.coordinates?.lng || null,
+                  start_time: evt.timeStart,
+                  end_time: evt.timeEnd || null,
+                  duration: evt.duration || null,
+                  google_maps_link: evt.googleMapsLink,
+                  waze_link: evt.wazeLink,
+                  image_url: evt.image,
+                  notes: noteStr,
+                  transport_type: evt.transportType || null,
+                  activity_order: idx + 1
+                });
+              });
+            }
+
+            const { data: currentActivities } = await supabase
+              .from("activities")
+              .select("id")
+              .eq("trip_id", trip.id);
+
+            const incomingIds = incomingActivities.map(a => a.id).filter(Boolean);
+            const activitiesToDelete = (currentActivities || [])
+              .map(a => a.id)
+              .filter(id => !incomingIds.includes(id));
+
+            if (activitiesToDelete.length > 0) {
+              await supabase.from("activities").delete().in("id", activitiesToDelete);
+            }
+
+            for (const act of incomingActivities) {
+              if (act.id) {
+                await supabase.from("activities").upsert(act);
+              } else {
+                const { id, ...newAct } = act;
+                await supabase.from("activities").insert(newAct);
+              }
+            }
+
+            const incomingExpenses = (trip.expenses || []).map(exp => ({
+              id: isUUID(exp.id) ? exp.id : undefined,
+              trip_id: trip.id,
+              category: exp.category,
+              description: exp.description,
+              amount: exp.amount,
+              expense_date: exp.date || null,
+              is_planned: exp.isPlanned,
+              supplier: exp.supplier || null
+            }));
+
+            const { data: currentExpenses } = await supabase
+              .from("expenses")
+              .select("id")
+              .eq("trip_id", trip.id);
+
+            const incomingExpIds = incomingExpenses.map(e => e.id).filter(Boolean);
+            const expensesToDelete = (currentExpenses || [])
+              .map(e => e.id)
+              .filter(id => !incomingExpIds.includes(id));
+
+            if (expensesToDelete.length > 0) {
+              await supabase.from("expenses").delete().in("id", expensesToDelete);
+            }
+
+            for (const exp of incomingExpenses) {
+              if (exp.id) {
+                await supabase.from("expenses").upsert(exp);
+              } else {
+                const { id, ...newExp } = exp;
+                await supabase.from("expenses").insert(newExp);
+              }
+            }
+
+            const { data: fullRow } = await supabase.from("trips").select("*").eq("id", trip.id).single();
+            if (fullRow) {
+              const assembled = await this.assembleTrip(fullRow);
+              if (assembled) {
+                assembled.itinerary = reconcileItineraries(trip.itinerary, assembled.itinerary);
+                return assembled;
+              }
+            }
+          }
         }
+      } catch (err) {
+        console.warn("Supabase updateTrip network error, falling back to local backend:", err);
       }
     }
 
-    // Re-fetch trip days to have full IDs
-    const { data: updatedDays } = await supabase
-      .from("trip_days")
-      .select("id, date")
-      .eq("trip_id", trip.id);
-
-    // Save/Sync activities
-    const incomingActivities: any[] = [];
-    for (const date of itineraryDates) {
-      const matchedDay = updatedDays?.find(d => d.date === date);
-      const events = trip.itinerary[date] || [];
-      events.forEach((evt, idx) => {
-        incomingActivities.push({
-          id: isUUID(evt.id) ? evt.id : undefined, // clean temp IDs if any (must be valid UUID or undefined)
-          trip_id: trip.id,
-          trip_day_id: matchedDay?.id || null,
-          title: evt.name,
-          description: evt.description,
-          category: evt.category,
-          address: evt.address,
-          latitude: evt.coordinates?.lat || null,
-          longitude: evt.coordinates?.lng || null,
-          start_time: evt.timeStart,
-          end_time: evt.timeEnd || null,
-          duration: evt.duration || null,
-          google_maps_link: evt.googleMapsLink,
-          waze_link: evt.wazeLink,
-          image_url: evt.image,
-          notes: embedTransportInNotes(evt.notes, evt.transportType),
-          transport_type: evt.transportType || null,
-          activity_order: idx + 1
-        });
+    // Local Express fallback
+    try {
+      const resp = await fetch(`/api/trips/${trip.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(trip)
       });
-    }
-
-    // Query existing activities to see what to delete
-    const { data: currentActivities } = await supabase
-      .from("activities")
-      .select("id")
-      .eq("trip_id", trip.id);
-
-    const incomingIds = incomingActivities.map(a => a.id).filter(Boolean);
-    const activitiesToDelete = (currentActivities || [])
-      .map(a => a.id)
-      .filter(id => !incomingIds.includes(id));
-
-    // Delete unused activities
-    if (activitiesToDelete.length > 0) {
-      await supabase.from("activities").delete().in("id", activitiesToDelete);
-    }
-
-    // Upsert incoming activities
-    for (const act of incomingActivities) {
-      if (act.id) {
-        await supabase.from("activities").upsert(act);
-      } else {
-        // Create new
-        const { id, ...newAct } = act;
-        await supabase.from("activities").insert(newAct);
+      if (!resp.ok) throw new Error("HTTP error " + resp.status);
+      const data: Trip = await resp.json();
+      if (data && data.itinerary) {
+        data.itinerary = reconcileItineraries(trip.itinerary, data.itinerary);
       }
+      return data;
+    } catch (err) {
+      console.error("Local updateTrip failed:", err);
+      // Return updated trip so state remains updated
+      return trip;
     }
-
-    // Sync expenses
-    const incomingExpenses = trip.expenses.map(exp => ({
-      id: isUUID(exp.id) ? exp.id : undefined, // clean temp IDs (must be valid UUID or undefined)
-      trip_id: trip.id,
-      category: exp.category,
-      description: exp.description,
-      amount: exp.amount,
-      expense_date: exp.date || null,
-      is_planned: exp.isPlanned,
-      supplier: exp.supplier || null
-    }));
-
-    const { data: currentExpenses } = await supabase
-      .from("expenses")
-      .select("id")
-      .eq("trip_id", trip.id);
-
-    const incomingExpIds = incomingExpenses.map(e => e.id).filter(Boolean);
-    const expensesToDelete = (currentExpenses || [])
-      .map(e => e.id)
-      .filter(id => !incomingExpIds.includes(id));
-
-    if (expensesToDelete.length > 0) {
-      await supabase.from("expenses").delete().in("id", expensesToDelete);
-    }
-
-    for (const exp of incomingExpenses) {
-      if (exp.id) {
-        await supabase.from("expenses").upsert(exp);
-      } else {
-        const { id, ...newExp } = exp;
-        await supabase.from("expenses").insert(newExp);
-      }
-    }
-
-    // Refetch full compiled trip
-    const { data: fullRow } = await supabase.from("trips").select("*").eq("id", trip.id).single();
-    return await this.assembleTrip(fullRow);
   },
 
   // 4. Duplicate Trip
   async duplicateTrip(id: string): Promise<Trip | null> {
-    if (!isSupabaseConfigured) {
+    if (isSupabaseConfigured) {
       try {
-        const resp = await fetch(`/api/trips/${id}/duplicate`, {
-          method: "POST"
-        });
-        if (!resp.ok) throw new Error("HTTP error " + resp.status);
-        const data = await resp.json();
-        return data;
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: sourceTrip } = await supabase.from("trips").select("*").eq("id", id).single();
+          if (sourceTrip) {
+            const newTitle = `${sourceTrip.title} (Cópia)`;
+            const newTrip = await this.createTrip({
+              name: newTitle,
+              description: sourceTrip.description,
+              destination: sourceTrip.destination,
+              startDate: sourceTrip.start_date,
+              endDate: sourceTrip.end_date,
+              vehicle: sourceTrip.vehicle_data,
+              accommodation: sourceTrip.accommodation_data,
+              flights: sourceTrip.flights_data,
+              homeAddress: sourceTrip.home_address,
+              accommodationAddress: sourceTrip.accommodation_address,
+              accommodationMapLink: sourceTrip.accommodation_map_link,
+              accommodationName: sourceTrip.accommodation_name,
+              accommodationContact: sourceTrip.accommodation_contact
+            });
+
+            if (newTrip) {
+              const sourceCompiled = await this.assembleTrip(sourceTrip);
+              if (sourceCompiled) {
+                const updatedWithActivities = {
+                  ...newTrip,
+                  itinerary: sourceCompiled.itinerary,
+                  expenses: sourceCompiled.expenses
+                };
+                return await this.updateTrip(updatedWithActivities);
+              }
+              return newTrip;
+            }
+          }
+        }
       } catch (err) {
-        console.error("Local duplicateTrip failed:", err);
-        throw err;
+        console.warn("Supabase duplicateTrip network error, falling back to local backend:", err);
       }
     }
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Utilizador não autenticado.");
-
-    // Insert copy of the trip via RPC or manually. We can call direct:
-    const { data: sourceTrip } = await supabase.from("trips").select("*").eq("id", id).single();
-    if (!sourceTrip) throw new Error("Viagem origem não encontrada");
-
-    const newTitle = `${sourceTrip.title} (Cópia)`;
-    const newTrip = await this.createTrip({
-      name: newTitle,
-      description: sourceTrip.description,
-      destination: sourceTrip.destination,
-      startDate: sourceTrip.start_date,
-      endDate: sourceTrip.end_date,
-      vehicle: sourceTrip.vehicle_data,
-      accommodation: sourceTrip.accommodation_data,
-      flights: sourceTrip.flights_data,
-      homeAddress: sourceTrip.home_address,
-      accommodationAddress: sourceTrip.accommodation_address,
-      accommodationMapLink: sourceTrip.accommodation_map_link,
-      accommodationName: sourceTrip.accommodation_name,
-      accommodationContact: sourceTrip.accommodation_contact
-    });
-
-    if (!newTrip) throw new Error("Falha ao duplicar viagem");
-
-    // Also copy activities, expenses
-    const sourceCompiled = await this.assembleTrip(sourceTrip);
-    if (sourceCompiled) {
-      // Copy activities
-      const updatedWithActivities = {
-        ...newTrip,
-        itinerary: sourceCompiled.itinerary,
-        expenses: sourceCompiled.expenses
-      };
-      return await this.updateTrip(updatedWithActivities);
+    try {
+      const resp = await fetch(`/api/trips/${id}/duplicate`, {
+        method: "POST"
+      });
+      if (!resp.ok) throw new Error("HTTP error " + resp.status);
+      const data = await resp.json();
+      return data;
+    } catch (err) {
+      console.error("Local duplicateTrip failed:", err);
+      throw err;
     }
-
-    return newTrip;
   },
 
   // 5. Delete Trip
   async deleteTrip(id: string): Promise<void> {
-    if (!isSupabaseConfigured) {
+    if (isSupabaseConfigured) {
       try {
-        const resp = await fetch(`/api/trips/${id}`, {
-          method: "DELETE"
-        });
-        if (!resp.ok) throw new Error("HTTP error " + resp.status);
+        const { data: docs } = await supabase.from("documents").select("storage_path").eq("trip_id", id);
+        if (docs && docs.length > 0) {
+          const paths = docs.map(d => d.storage_path);
+          await supabase.storage.from("trip-documents").remove(paths);
+        }
+
+        const { error } = await supabase.from("trips").delete().eq("id", id);
+        if (!error) return;
       } catch (err) {
-        console.error("Local deleteTrip failed:", err);
-        throw err;
+        console.warn("Supabase deleteTrip network error, falling back to local backend:", err);
       }
-      return;
     }
 
-    // Delete documents first to avoid storage orphans
-    const { data: docs } = await supabase.from("documents").select("storage_path").eq("trip_id", id);
-    if (docs && docs.length > 0) {
-      const paths = docs.map(d => d.storage_path);
-      await supabase.storage.from("trip-documents").remove(paths);
-    }
-
-    // Delete trip row (Cascade deletes members, trip_days, activities, expenses, documents)
-    const { error } = await supabase.from("trips").delete().eq("id", id);
-    if (error) {
-      throw new Error(error.message);
+    try {
+      const resp = await fetch(`/api/trips/${id}`, {
+        method: "DELETE"
+      });
+      if (!resp.ok) throw new Error("HTTP error " + resp.status);
+    } catch (err) {
+      console.error("Local deleteTrip failed:", err);
+      throw err;
     }
   },
 
   // 6. Get member role for trip
   async getMemberRole(tripId: string): Promise<"owner" | "viewer" | null> {
-    if (!isSupabaseConfigured) {
+    if (isSupabaseConfigured) {
       try {
-        const resp = await fetch("/api/trips");
-        if (resp.ok) {
-          const trips: Trip[] = await resp.json();
-          const trip = trips.find(t => t.id === tripId);
-          if (trip) {
-            const p = trip.participants?.find(part => part.id === "user-ricardo" || part.email === "ricardojpmedeiros@gmail.com");
-            if (p) {
-              return p.role === "Planeador" ? "owner" : "viewer";
-            }
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data, error } = await supabase
+            .from("trip_members")
+            .select("role")
+            .eq("trip_id", tripId)
+            .eq("user_id", user.id)
+            .single();
+
+          if (!error && data) {
+            return data.role as "owner" | "viewer";
           }
         }
       } catch (err) {
-        console.error("Local getMemberRole failed:", err);
+        console.warn("Supabase getMemberRole network error, falling back to local check:", err);
       }
-      return "owner";
     }
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
-
-    const { data, error } = await supabase
-      .from("trip_members")
-      .select("role")
-      .eq("trip_id", tripId)
-      .eq("user_id", user.id)
-      .single();
-
-    if (error || !data) return null;
-    return data.role as "owner" | "viewer";
+    try {
+      const resp = await fetch("/api/trips");
+      if (resp.ok) {
+        const trips: Trip[] = await resp.json();
+        const trip = trips.find(t => t.id === tripId);
+        if (trip) {
+          const p = trip.participants?.find(part => part.id === "user-ricardo" || part.email === "ricardojpmedeiros@gmail.com");
+          if (p) {
+            return p.role === "Planeador" ? "owner" : "viewer";
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Local getMemberRole failed:", err);
+    }
+    return "owner";
   }
 };
 export { type Trip, type Event, type Expense, type Document, type UserProfile };

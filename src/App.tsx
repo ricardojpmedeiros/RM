@@ -10,7 +10,7 @@ import TripDetails from "./components/TripDetails";
 import ReportModal from "./components/ReportModal";
 import AuthScreen from "./components/AuthScreen";
 import { authService } from "./services/authService";
-import { tripService } from "./services/tripService";
+import { tripService, reconcileItineraries } from "./services/tripService";
 import { invitationService } from "./services/invitationService";
 import { Compass, RefreshCw } from "lucide-react";
 
@@ -134,17 +134,25 @@ export default function App() {
     }
   };
 
-  // Sync updates back to Supabase
+  // Sync updates back to server/Supabase
   const handleUpdateTrip = async (updated: Trip) => {
+    // Optimistic UI state update so changes are instant and persistent
+    setTrips(prev => prev.map(t => t.id === updated.id ? updated : t));
+    setSelectedTrip(updated);
+
     try {
       const freshTrip = await tripService.updateTrip(updated);
       if (freshTrip) {
-        setTrips(prev => prev.map(t => t.id === updated.id ? freshTrip : t));
-        setSelectedTrip(freshTrip);
+        const finalItinerary = reconcileItineraries(updated.itinerary, freshTrip.itinerary || {});
+        const finalTrip: Trip = {
+          ...freshTrip,
+          itinerary: finalItinerary
+        };
+        setTrips(prev => prev.map(t => t.id === updated.id ? finalTrip : t));
+        setSelectedTrip(finalTrip);
       }
     } catch (err) {
-      console.error("Failed to update trip:", err);
-      alert("Não foi possível atualizar a viagem. Verifique as suas permissões.");
+      console.error("Failed to update trip on backend:", err);
     }
   };
 

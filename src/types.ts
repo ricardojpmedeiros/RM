@@ -27,6 +27,7 @@ export interface Event {
   transportType?: string;
   transportCost?: number;
   transportError?: string | null;
+  completed?: boolean;
 }
 
 export interface Expense {

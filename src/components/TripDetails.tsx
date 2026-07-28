@@ -9,6 +9,7 @@ import {
   getVersionsForSelection
 } from "../data/cars";
 import MapPicker from "./MapPicker";
+import TripMap from "./TripMap";
 import { 
   Car, 
   BatteryCharging, 
@@ -301,9 +302,42 @@ export default function TripDetails({
 }: TripDetailsProps) {
   const [activeTab, setActiveTab] = useState<"hoje" | "itinerary" | "map" | "expenses" | "documents" | "participants" | "vehicle" | "settings">("hoje");
   
-  // Day navigation for itinerary
-  const dates = Object.keys(trip.itinerary).sort();
-  const [selectedDate, setSelectedDate] = useState(dates[0] || "");
+  // Day navigation for itinerary - comprehensive calculation of all trip dates
+  const dates = React.useMemo(() => {
+    const set = new Set<string>();
+    if (trip.itinerary) {
+      Object.keys(trip.itinerary).forEach(d => {
+        if (d && d.trim()) set.add(d.trim());
+      });
+    }
+    if (trip.startDate && trip.endDate) {
+      try {
+        const s = new Date(trip.startDate + "T00:00:00");
+        const e = new Date(trip.endDate + "T00:00:00");
+        if (!isNaN(s.getTime()) && !isNaN(e.getTime()) && s <= e) {
+          const curr = new Date(s);
+          while (curr <= e) {
+            set.add(curr.toISOString().split("T")[0]);
+            curr.setDate(curr.getDate() + 1);
+          }
+        }
+      } catch (err) {
+        // ignore invalid date
+      }
+    }
+    if (set.size === 0 && trip.startDate) {
+      set.add(trip.startDate);
+    }
+    return Array.from(set).sort();
+  }, [trip.itinerary, trip.startDate, trip.endDate]);
+
+  const [selectedDate, setSelectedDate] = useState(dates[0] || trip.startDate || "");
+
+  useEffect(() => {
+    if ((!selectedDate || !dates.includes(selectedDate)) && dates.length > 0) {
+      setSelectedDate(dates[0]);
+    }
+  }, [dates]);
 
   // Real-time clock & timezone engine
   const [now, setNow] = useState(new Date());
@@ -335,6 +369,7 @@ export default function TripDetails({
   // Event modal states
   const [showEventModal, setShowEventModal] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
+  const [evtDate, setEvtDate] = useState<string>("");
   const [evtName, setEvtName] = useState("");
   const [evtTimeStart, setEvtTimeStart] = useState("10:00");
   const [evtTimeEnd, setEvtTimeEnd] = useState("");
@@ -351,6 +386,24 @@ export default function TripDetails({
   const [evtLng, setEvtLng] = useState("");
   const [evtNotes, setEvtNotes] = useState("");
   const [evtImage, setEvtImage] = useState("");
+
+  const openAddEventModal = (targetDay?: string) => {
+    setEditingEventId(null);
+    setEvtName("");
+    setEvtTimeStart("10:00");
+    setEvtTimeEnd("");
+    setEvtDuration("");
+    setEvtGoogleMapsLink("");
+    setEvtDescription("");
+    setEvtAddress("");
+    setEvtLat("");
+    setEvtLng("");
+    setEvtNotes("");
+    setEvtImage("");
+    setEvtTransportType("Carro");
+    setEvtDate(targetDay || selectedDate || dates[0] || trip.startDate || "");
+    setShowEventModal(true);
+  };
 
   // Event deletion confirmation modal state
   const [deleteConfirmEvent, setDeleteConfirmEvent] = useState<{ id: string; name: string } | null>(null);
@@ -1063,32 +1116,53 @@ export default function TripDetails({
       image: evtImage || "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80"
     };
 
+    const targetDay = (evtDate && dates.includes(evtDate)) 
+      ? evtDate 
+      : ((selectedDate && dates.includes(selectedDate)) ? selectedDate : (dates[0] || trip.startDate || new Date().toISOString().split("T")[0]));
+
     let updatedItinerary = { ...trip.itinerary };
+    delete updatedItinerary[""]; // Strip any accidental blank string key
+
+    if (!updatedItinerary[targetDay]) {
+      updatedItinerary[targetDay] = [];
+    }
 
     if (editingEventId) {
-      // Edit
-      updatedItinerary[selectedDate] = updatedItinerary[selectedDate].map(evt => 
-        evt.id === editingEventId ? { ...evt, ...eventPayload } : evt
-      );
+      // Remove event from any previous day it belonged to
+      Object.keys(updatedItinerary).forEach(d => {
+        if (Array.isArray(updatedItinerary[d])) {
+          updatedItinerary[d] = updatedItinerary[d].filter(evt => evt.id !== editingEventId);
+        }
+      });
+
+      // Insert into target day with updated details
+      updatedItinerary[targetDay].push({
+        id: editingEventId,
+        ...(eventPayload as Event)
+      });
     } else {
-      // Create
+      // Create new event
       const newEvent: Event = {
         id: "evt-" + Date.now(),
         ...(eventPayload as Event)
       };
-      if (!updatedItinerary[selectedDate]) updatedItinerary[selectedDate] = [];
-      updatedItinerary[selectedDate].push(newEvent);
+      updatedItinerary[targetDay].push(newEvent);
     }
 
-    // Sort
-    updatedItinerary[selectedDate].sort((a, b) => a.timeStart.localeCompare(b.timeStart));
+    // Sort target day chronologically
+    if (updatedItinerary[targetDay]) {
+      updatedItinerary[targetDay].sort((a, b) => (a.timeStart || "00:00").localeCompare(b.timeStart || "00:00"));
+    }
 
     onUpdateTrip({
       ...trip,
       itinerary: updatedItinerary
     });
 
-    // Reset
+    // Directly set selectedDate to targetDay so user sees event instantly
+    setSelectedDate(targetDay);
+
+    // Reset form state
     setShowEventModal(false);
     setEditingEventId(null);
     setEvtName("");
@@ -1103,9 +1177,12 @@ export default function TripDetails({
     setEvtNotes("");
     setEvtImage("");
     setEvtTransportType("Carro");
+    setEvtDate("");
   };
 
   const handleEditEventClick = (evt: Event) => {
+    const foundDate = Object.keys(trip.itinerary).find(d => (trip.itinerary[d] || []).some(e => e.id === evt.id));
+    setEvtDate(foundDate || selectedDate || dates[0]);
     setEditingEventId(evt.id);
     setEvtName(evt.name);
     setEvtTimeStart(evt.timeStart);
@@ -1796,10 +1873,7 @@ export default function TripDetails({
             {isPlanner ? (
               <div className="space-y-2 mt-2">
                 <button
-                  onClick={() => {
-                    setEditingEventId(null);
-                    setShowEventModal(true);
-                  }}
+                  onClick={() => openAddEventModal()}
                   className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl text-xs transition-colors shadow-sm"
                 >
                   <Plus className="w-4 h-4" />
@@ -1837,7 +1911,7 @@ export default function TripDetails({
                 <p className="text-gray-500 text-sm">Nenhum evento agendado para este dia.</p>
                 {isPlanner && (
                   <button
-                    onClick={() => setShowEventModal(true)}
+                    onClick={() => openAddEventModal()}
                     className="mt-3 text-xs font-bold text-indigo-600 bg-indigo-50 px-4 py-2 rounded-xl hover:bg-indigo-100 transition-colors"
                   >
                     Adicionar primeiro evento
@@ -2141,292 +2215,11 @@ export default function TripDetails({
         </div>
       )}
 
-      {/* --- TAB 3: MAPA (Interactive Route Pin Plotter) --- */}
+      {/* --- TAB 3: MAPA (Interactive Route Pin Plotter & Polylines) --- */}
       {activeTab === "map" && (
-        <div className="space-y-6" id="view-map">
-          <div className="bg-white rounded-3xl border border-gray-100 p-5 shadow-sm space-y-5">
-            <div>
-              <h3 className="font-bold text-gray-900 text-lg">Mapa de Rota & Pontos de Interesse</h3>
-              <p className="text-xs text-gray-500 mt-1">Navegação interativa ao longo da Rota Vicentina com localizador de pontos próximos</p>
-            </div>
-
-            {/* Simulated Realistic Road Map Canvas */}
-            <div className="bg-[#f2efe9] rounded-2xl h-[420px] relative overflow-hidden flex items-center justify-center border border-gray-200 shadow-inner">
-              {/* Decorative Land/Water Vectors */}
-              <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
-                {/* Coastal Ocean water */}
-                <path d="M 0 0 Q 150 100 220 230 T 150 350 T 0 420 L 0 0 Z" fill="#cbdcfc" opacity="0.8" />
-                <text x="20" y="220" className="text-[10px] font-bold text-blue-600/50 fill-current select-none italic" transform="rotate(-90 20 220)">Oceano Atlântico</text>
-
-                {/* Parks and Natural Reserves */}
-                <rect x="250" y="30" width="120" height="100" rx="15" fill="#d5ecd6" opacity="0.9" />
-                <rect x="580" y="160" width="160" height="140" rx="20" fill="#d5ecd6" opacity="0.9" />
-                <text x="610" y="185" className="text-[9px] font-semibold text-emerald-700/40 fill-current select-none">Parque Natural</text>
-
-                {/* Major Highways & Road Network */}
-                <path d="M 120 0 C 180 120 280 180 350 200 S 600 240 700 280 S 780 340 850 420" fill="none" stroke="#ffffff" strokeWidth="10" strokeLinecap="round" />
-                <path d="M 120 0 C 180 120 280 180 350 200 S 600 240 700 280 S 780 340 850 420" fill="none" stroke="#ffb74d" strokeWidth="4" strokeLinecap="round" />
-                <text x="500" y="215" className="text-[8px] font-bold text-amber-800/60 fill-current select-none uppercase tracking-wider">EN120</text>
-
-                {/* Secondary Cross Streets */}
-                <path d="M 0 150 L 1000 150" fill="none" stroke="#ffffff" strokeWidth="6" />
-                <path d="M 350 200 L 350 420" fill="none" stroke="#ffffff" strokeWidth="6" />
-                <path d="M 500 0 L 780 420" fill="none" stroke="#ffffff" strokeWidth="4" opacity="0.5" />
-
-                {/* Active Route Guideline */}
-                <path 
-                  d="M 100 100 C 180 120 280 180 350 180 S 620 260 620 260 S 780 300 780 300" 
-                  fill="none" 
-                  stroke="#4f46e5" 
-                  strokeWidth="5" 
-                  strokeLinecap="round"
-                  strokeDasharray="8,6"
-                  className="animate-pulse"
-                />
-              </svg>
-
-              {/* Grid overlay for map feel */}
-              <div className="absolute inset-0 bg-[radial-gradient(#00000005_1.2px,transparent_1.2px)] [background-size:24px_24px]"></div>
-
-              {/* Pins along route */}
-              <div className="absolute top-[80px] left-[85px] text-center" title="Partida Lisboa">
-                <span className="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center text-[10px] font-bold text-white shadow-md ring-4 ring-indigo-500/20 select-none">1</span>
-                <p className="text-[9px] text-gray-800 font-extrabold bg-white/90 border border-gray-100 px-1.5 py-0.5 rounded mt-0.5 shadow-sm">Lisboa</p>
-              </div>
-
-              <div className="absolute top-[165px] left-[330px] text-center" title="Porto Covo">
-                <span className="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center text-[10px] font-bold text-white shadow-md ring-4 ring-indigo-500/20 select-none">2</span>
-                <p className="text-[9px] text-gray-800 font-extrabold bg-white/90 border border-gray-100 px-1.5 py-0.5 rounded mt-0.5 shadow-sm">Porto Covo</p>
-              </div>
-
-              <div className="absolute top-[245px] left-[600px] text-center" title="Odeceixe">
-                <span className="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center text-[10px] font-bold text-white shadow-md ring-4 ring-indigo-500/20 select-none">3</span>
-                <p className="text-[9px] text-gray-800 font-extrabold bg-white/90 border border-gray-100 px-1.5 py-0.5 rounded mt-0.5 shadow-sm">Odeceixe</p>
-              </div>
-
-              <div className="absolute top-[285px] left-[760px] text-center" title="Sagres">
-                <span className="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center text-[10px] font-bold text-white shadow-md ring-4 ring-indigo-500/20 select-none">4</span>
-                <p className="text-[9px] text-gray-800 font-extrabold bg-white/90 border border-gray-100 px-1.5 py-0.5 rounded mt-0.5 shadow-sm">Sagres</p>
-              </div>
-
-              {/* Dynamic Nearby Place Markers (Rendered when category is selected) */}
-              {mapSearchCategory && MOCK_NEARBY_PLACES[mapSearchCategory].map((place) => {
-                const isSelected = selectedMapPlace?.id === place.id;
-                return (
-                  <button
-                    key={place.id}
-                    onClick={() => setSelectedMapPlace(place)}
-                    style={{ top: `${place.coords.y}px`, left: `${place.coords.x}px` }}
-                    className="absolute -translate-x-1/2 -translate-y-1/2 group focus:outline-none z-20"
-                    title={place.name}
-                  >
-                    <div className={`relative flex items-center justify-center p-1.5 rounded-full shadow-lg border transition-all ${
-                      isSelected 
-                        ? "bg-rose-600 border-white text-white scale-125 z-30 ring-4 ring-rose-500/30" 
-                        : "bg-white border-rose-500 text-rose-500 hover:scale-110"
-                    }`}>
-                      {mapSearchCategory === "combustivel" && <Fuel className="w-3.5 h-3.5" />}
-                      {mapSearchCategory === "carregamento" && <BatteryCharging className="w-3.5 h-3.5" />}
-                      {mapSearchCategory === "restaurante" && <Utensils className="w-3.5 h-3.5" />}
-                      {mapSearchCategory === "farmacia" && <Pill className="w-3.5 h-3.5" />}
-                      
-                      {/* Pulse effect for selected pin */}
-                      {isSelected && (
-                        <span className="absolute -inset-1 rounded-full border-2 border-rose-600 animate-ping opacity-75"></span>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-
-              {/* Interactive Tooltip Overlay */}
-              {selectedMapPlace ? (
-                <div 
-                  className="absolute z-30 bg-white border border-gray-100 rounded-xl p-3 shadow-xl max-w-[240px] text-xs space-y-1.5 animate-scale-up"
-                  style={{ 
-                    top: `${Math.max(selectedMapPlace.coords.y - 75, 15)}px`, 
-                    left: `${Math.min(Math.max(selectedMapPlace.coords.x, 120), 880)}px`,
-                    transform: "translateX(-50%)"
-                  }}
-                >
-                  <div className="flex justify-between items-start gap-2">
-                    <h5 className="font-bold text-gray-900 truncate pr-2">{selectedMapPlace.name}</h5>
-                    <button 
-                      onClick={() => setSelectedMapPlace(null)}
-                      className="text-gray-400 hover:text-gray-600 text-xs font-bold"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  <p className="text-[10px] text-gray-400 truncate">{selectedMapPlace.address}</p>
-                  <div className="flex justify-between items-center text-[10px] pt-1">
-                    <span className="bg-rose-50 text-rose-600 font-bold px-1.5 py-0.2 rounded">{selectedMapPlace.dist}</span>
-                    <span className="text-gray-500 font-medium">{selectedMapPlace.hours}</span>
-                  </div>
-                  <div className="border-t border-gray-50 pt-1.5 flex gap-1.5">
-                    <button
-                      onClick={() => handleAddSearchPlaceToItinerary(selectedMapPlace)}
-                      className="flex-1 text-center py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[9px] rounded-lg transition-all"
-                    >
-                      + Itinerário
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="absolute bottom-4 left-4 bg-slate-900/95 border border-white/10 px-3 py-2 rounded-xl text-white text-xs max-w-sm">
-                  <p className="font-bold text-indigo-400">Lisboa → Sines → Sagres</p>
-                  <p className="text-gray-300 text-[10px] mt-0.5">Siga a rota demarcada na Rota Vicentina pela EN120.</p>
-                </div>
-              )}
-            </div>
-
-            {/* Quick Search Selector Buttons */}
-            <div className="space-y-3">
-              <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Procurar Serviços Próximos na Rota:</h4>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <button
-                  onClick={() => {
-                    setMapSearchCategory("combustivel");
-                    setSelectedMapPlace(null);
-                  }}
-                  className={`py-3 px-4 rounded-xl border font-bold text-xs flex flex-col items-center justify-center gap-1.5 transition-all ${
-                    mapSearchCategory === "combustivel"
-                      ? "bg-amber-50 border-amber-300 text-amber-800 shadow-sm"
-                      : "bg-white border-gray-200 text-gray-600 hover:border-amber-300 hover:text-amber-700"
-                  }`}
-                >
-                  <Fuel className="w-5 h-5 text-amber-500" />
-                  <span>Postos de Combustível</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setMapSearchCategory("carregamento");
-                    setSelectedMapPlace(null);
-                  }}
-                  className={`py-3 px-4 rounded-xl border font-bold text-xs flex flex-col items-center justify-center gap-1.5 transition-all ${
-                    mapSearchCategory === "carregamento"
-                      ? "bg-indigo-50 border-indigo-300 text-indigo-800 shadow-sm"
-                      : "bg-white border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-700"
-                  }`}
-                >
-                  <BatteryCharging className="w-5 h-5 text-indigo-500" />
-                  <span>Pontos de Carregamento</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setMapSearchCategory("restaurante");
-                    setSelectedMapPlace(null);
-                  }}
-                  className={`py-3 px-4 rounded-xl border font-bold text-xs flex flex-col items-center justify-center gap-1.5 transition-all ${
-                    mapSearchCategory === "restaurante"
-                      ? "bg-emerald-50 border-emerald-300 text-emerald-800 shadow-sm"
-                      : "bg-white border-gray-200 text-gray-600 hover:border-emerald-300 hover:text-emerald-700"
-                  }`}
-                >
-                  <Utensils className="w-5 h-5 text-emerald-500" />
-                  <span>Restaurantes</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setMapSearchCategory("farmacia");
-                    setSelectedMapPlace(null);
-                  }}
-                  className={`py-3 px-4 rounded-xl border font-bold text-xs flex flex-col items-center justify-center gap-1.5 transition-all ${
-                    mapSearchCategory === "farmacia"
-                      ? "bg-rose-50 border-rose-300 text-rose-800 shadow-sm"
-                      : "bg-white border-gray-200 text-gray-600 hover:border-rose-300 hover:text-rose-700"
-                  }`}
-                >
-                  <Pill className="w-5 h-5 text-rose-500" />
-                  <span>Farmácias</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Success Feedback banner */}
-            {addPlaceSuccess && (
-              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 text-xs text-emerald-800 font-semibold flex items-center gap-2 animate-pulse">
-                <Check className="w-4 h-4 text-emerald-600" />
-                <span>{addPlaceSuccess}</span>
-              </div>
-            )}
-
-            {/* Nearest 5 Places list results */}
-            {mapSearchCategory ? (
-              <div className="space-y-3 pt-2">
-                <div className="flex justify-between items-center">
-                  <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider">As 5 localizações mais próximas na viagem:</h4>
-                  <span className="text-[10px] bg-gray-100 text-gray-500 font-bold px-2 py-0.5 rounded">Ordenado por distância</span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {MOCK_NEARBY_PLACES[mapSearchCategory].map((place) => {
-                    const isSelected = selectedMapPlace?.id === place.id;
-                    const isCharging = mapSearchCategory === "carregamento";
-                    const statusText = place.status;
-                    const isAvailable = statusText.includes("Disponível") || statusText.includes("Aberto");
-
-                    return (
-                      <div 
-                        key={place.id}
-                        onClick={() => setSelectedMapPlace(place)}
-                        className={`p-4 rounded-xl border transition-all flex justify-between items-start cursor-pointer hover:shadow-sm ${
-                          isSelected 
-                            ? "bg-indigo-50/40 border-indigo-300 shadow-sm" 
-                            : "bg-gray-50/50 border-gray-100 hover:border-gray-200"
-                        }`}
-                      >
-                        <div className="space-y-1 pr-3 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-gray-800 text-xs truncate block">{place.name}</span>
-                            <span className="text-[9px] font-bold text-gray-400 shrink-0">★ {place.rating}</span>
-                          </div>
-                          <p className="text-[10px] text-gray-400 truncate">{place.address}</p>
-                          <div className="flex items-center gap-2 pt-1 text-[10px]">
-                            <span className="text-gray-500 font-medium">Horário: {place.hours}</span>
-                            <span className="text-gray-300">•</span>
-                            <span className={`font-bold ${isAvailable ? "text-emerald-600" : "text-rose-500"}`}>
-                              {place.status}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col items-end gap-2 shrink-0">
-                          <span className="text-[10px] bg-white border border-gray-200 text-gray-700 font-bold px-2 py-0.5 rounded-lg shadow-2xs">
-                            {place.dist}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleAddSearchPlaceToItinerary(place);
-                            }}
-                            className="py-1 px-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] rounded-lg transition-colors flex items-center gap-1"
-                          >
-                            <Plus className="w-3 h-3" />
-                            Adicionar
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : (
-              <div className="bg-gray-50 border border-gray-100 p-6 rounded-2xl text-center">
-                <Search className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                <h4 className="text-xs font-bold text-gray-600">Nenhum serviço selecionado</h4>
-                <p className="text-[11px] text-gray-400 max-w-xs mx-auto mt-1">
-                  Selecione uma categoria acima para listar postos de combustível, carregadores, restaurantes ou farmácias mais próximos da sua rota.
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
+        <TripMap trip={trip} onUpdateTrip={onUpdateTrip} />
       )}
+
 
       {/* --- TAB 4: DESPESAS (Confidential to Consultores!) --- */}
       {activeTab === "expenses" && (
@@ -3721,6 +3514,21 @@ export default function TripDetails({
             </div>
 
             <form onSubmit={handleEventSubmit} className="p-5 space-y-4 text-xs max-h-[80vh] overflow-y-auto">
+              <div>
+                <label className="block font-bold text-gray-700 mb-1">Dia da Viagem *</label>
+                <select
+                  value={evtDate || selectedDate || dates[0]}
+                  onChange={(e) => setEvtDate(e.target.value)}
+                  className="w-full px-2.5 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-bold text-gray-800 bg-white"
+                >
+                  {dates.map((d, idx) => (
+                    <option key={d} value={d}>
+                      Dia {idx + 1} - {new Date(d + "T00:00:00").toLocaleDateString("pt-PT", { day: "numeric", month: "long", year: "numeric" })}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="block font-bold text-gray-700 mb-1">Início *</label>
