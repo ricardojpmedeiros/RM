@@ -779,7 +779,90 @@ export default function TripDetails({
     });
   };
 
-  const activeItineraryList = calculateNavigationLegs(trip.itinerary[selectedDate] || []);
+  // Helper to safely retrieve events for a specific date string regardless of ISO format variations
+  const getItineraryForDate = (itineraryMap: { [date: string]: Event[] } = {}, targetDate: string): Event[] => {
+    if (!targetDate) return [];
+    const cleanTarget = targetDate.split("T")[0].trim();
+    if (!cleanTarget) return [];
+
+    if (Array.isArray(itineraryMap[cleanTarget])) {
+      return itineraryMap[cleanTarget];
+    }
+
+    for (const k of Object.keys(itineraryMap || {})) {
+      if (k.split("T")[0].trim() === cleanTarget && Array.isArray(itineraryMap[k])) {
+        return itineraryMap[k];
+      }
+    }
+
+    return [];
+  };
+
+  // Helper to get combined itinerary events for a target date (merging itinerary events + flight events)
+  const getCombinedEventsForDate = (tripData: Trip, targetDate: string): Event[] => {
+    const cleanTarget = (targetDate || "").split("T")[0].trim();
+    if (!cleanTarget) return [];
+
+    const explicitEvents = getItineraryForDate(tripData.itinerary, cleanTarget);
+
+    const flightEvents: Event[] = [];
+    if (Array.isArray(tripData.flights)) {
+      tripData.flights.forEach((flg, idx) => {
+        const flgDate = (flg.date || "").split("T")[0].trim();
+        if (flgDate === cleanTarget) {
+          const depTime = flg.departureTime || "08:00";
+          const arrTime = flg.arrivalTime || "10:30";
+
+          const hasDep = explicitEvents.some(
+            e => (e.name && e.name.toLowerCase().includes(flg.departure.toLowerCase())) || 
+                 (e.description && e.description.toLowerCase().includes(flg.flightNo.toLowerCase()))
+          );
+          if (!hasDep) {
+            flightEvents.push({
+              id: `flg-dep-${flg.flightNo}-${idx}`,
+              timeStart: depTime,
+              name: `Voo ${flg.flightNo} (${flg.airline}) - Partida: ${flg.departure}`,
+              description: `Apresentação no aeroporto de ${flg.departure} para embarque no voo ${flg.flightNo} da ${flg.airline}.`,
+              category: "Viagem / Na estrada",
+              address: flg.departure,
+              transportType: "Avião",
+              googleMapsLink: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(flg.departure)}`,
+              wazeLink: `https://waze.com/ul?q=${encodeURIComponent(flg.departure)}`,
+              image: "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=800&q=80",
+              notes: `Voo ${flg.flightNo}. Passageiros: ${flg.passengers || 1}.`
+            });
+          }
+
+          const hasArr = explicitEvents.some(
+            e => (e.name && e.name.toLowerCase().includes(flg.arrival.toLowerCase())) || 
+                 (e.description && e.description.toLowerCase().includes(flg.flightNo.toLowerCase()))
+          );
+          if (!hasArr) {
+            flightEvents.push({
+              id: `flg-arr-${flg.flightNo}-${idx}`,
+              timeStart: arrTime,
+              name: `Chegada Voo ${flg.flightNo}: ${flg.arrival}`,
+              description: `Desembarque e recolha de bagagens no Aeroporto de ${flg.arrival}.`,
+              category: "Viagem / Na estrada",
+              address: flg.arrival,
+              transportType: "Avião",
+              googleMapsLink: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(flg.arrival)}`,
+              wazeLink: `https://waze.com/ul?q=${encodeURIComponent(flg.arrival)}`,
+              image: "https://images.unsplash.com/photo-1542296332-2e4473faf563?auto=format&fit=crop&w=800&q=80",
+              notes: `Levantamento de viatura/transporte em ${flg.arrival}.`
+            });
+          }
+        }
+      });
+    }
+
+    const combined = [...flightEvents, ...explicitEvents];
+    combined.sort((a, b) => (a.timeStart || "00:00").localeCompare(b.timeStart || "00:00"));
+
+    return combined;
+  };
+
+  const activeItineraryList = calculateNavigationLegs(getCombinedEventsForDate(trip, selectedDate));
 
   // Location intelligence: Find Current Event or Next upcoming Event
   const findActiveOrNextEvent = (): {
@@ -789,7 +872,7 @@ export default function TripDetails({
     isToday: boolean;
   } => {
     const todayStr = new Date().toISOString().split("T")[0];
-    const todayEvents = trip.itinerary[todayStr] || [];
+    const todayEvents = getCombinedEventsForDate(trip, todayStr);
 
     const nowHour = new Date().getHours();
     const nowMin = new Date().getMinutes();
@@ -816,15 +899,21 @@ export default function TripDetails({
     }
 
     // 2. No events for TODAY. Check for future trip dates
-    const futureDate = dates.find(d => d > todayStr && trip.itinerary[d] && trip.itinerary[d].length > 0);
-    if (futureDate && trip.itinerary[futureDate].length > 0) {
-      return { event: trip.itinerary[futureDate][0], dateStr: futureDate, type: "future", isToday: false };
+    const futureDate = dates.find(d => d > todayStr && getCombinedEventsForDate(trip, d).length > 0);
+    if (futureDate) {
+      const evts = getCombinedEventsForDate(trip, futureDate);
+      if (evts.length > 0) {
+        return { event: evts[0], dateStr: futureDate, type: "future", isToday: false };
+      }
     }
 
     // 3. Fallback: No future events. Check past trip dates
-    const pastDate = dates.slice().reverse().find(d => d < todayStr && trip.itinerary[d] && trip.itinerary[d].length > 0);
-    if (pastDate && trip.itinerary[pastDate].length > 0) {
-      return { event: trip.itinerary[pastDate][0], dateStr: pastDate, type: "past", isToday: false };
+    const pastDate = dates.slice().reverse().find(d => d < todayStr && getCombinedEventsForDate(trip, d).length > 0);
+    if (pastDate) {
+      const evts = getCombinedEventsForDate(trip, pastDate);
+      if (evts.length > 0) {
+        return { event: evts[0], dateStr: pastDate, type: "past", isToday: false };
+      }
     }
 
     return { event: null, dateStr: todayStr, type: "past", isToday: false };
@@ -1846,7 +1935,7 @@ export default function TripDetails({
             </div>
             <div className="flex lg:flex-col gap-2 overflow-x-auto pb-2 lg:pb-0 scrollbar-none">
               {dates.map((d, index) => {
-                const count = (trip.itinerary[d] || []).length;
+                const count = getCombinedEventsForDate(trip, d).length;
                 return (
                   <button
                     key={d}
@@ -3530,29 +3619,31 @@ export default function TripDetails({
                 </select>
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="block font-bold text-gray-700 mb-1">Início *</label>
-                  <input
-                    type="time" required
-                    value={evtTimeStart} onChange={(e) => setEvtTimeStart(e.target.value)}
-                    className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base"
-                  />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-2 col-span-1 sm:col-span-2">
+                  <div>
+                    <label className="block font-bold text-gray-700 mb-1 text-xs">Hora de Início *</label>
+                    <input
+                      type="time" required
+                      value={evtTimeStart} onChange={(e) => setEvtTimeStart(e.target.value)}
+                      className="w-full px-2 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-semibold bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-gray-700 mb-1 text-xs">Hora de Fim (Opcional)</label>
+                    <input
+                      type="time"
+                      value={evtTimeEnd} onChange={(e) => setEvtTimeEnd(e.target.value)}
+                      className="w-full px-2 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-semibold bg-white"
+                    />
+                  </div>
                 </div>
                 <div>
-                  <label className="block font-bold text-gray-700 mb-1">Fim (Opcional)</label>
-                  <input
-                    type="time"
-                    value={evtTimeEnd} onChange={(e) => setEvtTimeEnd(e.target.value)}
-                    className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-gray-700 mb-1">Duração</label>
+                  <label className="block font-bold text-gray-700 mb-1 text-xs">Duração Estimada</label>
                   <input
                     type="text" placeholder="Ex: 1h, 45m"
                     value={evtDuration} onChange={(e) => setEvtDuration(e.target.value)}
-                    className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base"
+                    className="w-full px-2.5 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
                   />
                 </div>
               </div>
@@ -4163,7 +4254,7 @@ export default function TripDetails({
                   >
                     {dates.map((d, i) => (
                       <option key={d} value={d}>
-                        Dia {i + 1} ({new Date(d + "T00:00:00").toLocaleDateString("pt-PT", { day: "numeric", month: "short" })}) - {(trip.itinerary[d] || []).length} evts
+                        Dia {i + 1} ({new Date(d + "T00:00:00").toLocaleDateString("pt-PT", { day: "numeric", month: "short" })}) - {getCombinedEventsForDate(trip, d).length} evts
                       </option>
                     ))}
                   </select>
@@ -4179,7 +4270,7 @@ export default function TripDetails({
                   >
                     {dates.map((d, i) => (
                       <option key={d} value={d}>
-                        Dia {i + 1} ({new Date(d + "T00:00:00").toLocaleDateString("pt-PT", { day: "numeric", month: "short" })}) - {(trip.itinerary[d] || []).length} evts
+                        Dia {i + 1} ({new Date(d + "T00:00:00").toLocaleDateString("pt-PT", { day: "numeric", month: "short" })}) - {getCombinedEventsForDate(trip, d).length} evts
                       </option>
                     ))}
                   </select>
@@ -4194,7 +4285,7 @@ export default function TripDetails({
                       Dia {dates.indexOf(swapDayA) + 1} ({new Date(swapDayA + "T00:00:00").toLocaleDateString("pt-PT", { day: "numeric", month: "short" })})
                     </span>
                     <p className="text-gray-500 text-[11px] truncate">
-                      {(trip.itinerary[swapDayA] || []).length} evento(s)
+                      {getCombinedEventsForDate(trip, swapDayA).length} evento(s)
                     </p>
                   </div>
                   <ArrowRightLeft className="w-5 h-5 text-amber-600 shrink-0" />
@@ -4203,7 +4294,7 @@ export default function TripDetails({
                       Dia {dates.indexOf(swapDayB) + 1} ({new Date(swapDayB + "T00:00:00").toLocaleDateString("pt-PT", { day: "numeric", month: "short" })})
                     </span>
                     <p className="text-gray-500 text-[11px] truncate">
-                      {(trip.itinerary[swapDayB] || []).length} evento(s)
+                      {getCombinedEventsForDate(trip, swapDayB).length} evento(s)
                     </p>
                   </div>
                 </div>

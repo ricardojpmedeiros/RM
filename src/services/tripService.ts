@@ -74,7 +74,12 @@ export function reconcileItineraries(
     if (!normUser[cleanK]) normUser[cleanK] = [];
     const evts = userItinerary[k] || [];
     evts.forEach(e => {
-      if (!normUser[cleanK].some(x => x.id === e.id || (x.name === e.name && x.timeStart === e.timeStart))) {
+      if (!e) return;
+      if (e.id) {
+        if (!normUser[cleanK].some(x => x.id === e.id)) {
+          normUser[cleanK].push(e);
+        }
+      } else {
         normUser[cleanK].push(e);
       }
     });
@@ -88,7 +93,12 @@ export function reconcileItineraries(
     if (!normServer[cleanK]) normServer[cleanK] = [];
     const evts = serverItinerary[k] || [];
     evts.forEach(e => {
-      if (!normServer[cleanK].some(x => x.id === e.id || (x.name === e.name && x.timeStart === e.timeStart))) {
+      if (!e) return;
+      if (e.id) {
+        if (!normServer[cleanK].some(x => x.id === e.id)) {
+          normServer[cleanK].push(e);
+        }
+      } else {
         normServer[cleanK].push(e);
       }
     });
