@@ -44,6 +44,21 @@ function embedDateAndTransportInNotes(notes?: string, transportType?: string, ev
   return base;
 }
 
+export function ensureUUID(id?: string): string {
+  if (id && isUUID(id)) return id;
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    try {
+      return crypto.randomUUID();
+    } catch (e) {
+      // ignore fallback
+    }
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 // Helper function to reconcile local user itinerary state with backend server itinerary state
 export function reconcileItineraries(
   userItinerary: { [date: string]: Event[] } = {},
@@ -51,28 +66,51 @@ export function reconcileItineraries(
 ): { [date: string]: Event[] } {
   const result: { [date: string]: Event[] } = {};
 
-  // Gather all unique date keys from both user and server
+  // Normalize userItinerary keys to YYYY-MM-DD
+  const normUser: { [date: string]: Event[] } = {};
+  for (const k of Object.keys(userItinerary || {})) {
+    const cleanK = k.split("T")[0].trim();
+    if (!cleanK) continue;
+    if (!normUser[cleanK]) normUser[cleanK] = [];
+    const evts = userItinerary[k] || [];
+    evts.forEach(e => {
+      if (!normUser[cleanK].some(x => x.id === e.id || (x.name === e.name && x.timeStart === e.timeStart))) {
+        normUser[cleanK].push(e);
+      }
+    });
+  }
+
+  // Normalize serverItinerary keys to YYYY-MM-DD
+  const normServer: { [date: string]: Event[] } = {};
+  for (const k of Object.keys(serverItinerary || {})) {
+    const cleanK = k.split("T")[0].trim();
+    if (!cleanK) continue;
+    if (!normServer[cleanK]) normServer[cleanK] = [];
+    const evts = serverItinerary[k] || [];
+    evts.forEach(e => {
+      if (!normServer[cleanK].some(x => x.id === e.id || (x.name === e.name && x.timeStart === e.timeStart))) {
+        normServer[cleanK].push(e);
+      }
+    });
+  }
+
   const allDates = Array.from(new Set([
-    ...Object.keys(userItinerary || {}),
-    ...Object.keys(serverItinerary || {})
-  ])).filter(d => Boolean(d) && d.trim() !== "");
+    ...Object.keys(normUser),
+    ...Object.keys(normServer)
+  ])).filter(Boolean);
 
   for (const date of allDates) {
-    const cleanDate = date.split("T")[0].trim();
-    if (!cleanDate) continue;
-
-    const userEvents = userItinerary[date] || userItinerary[cleanDate] || [];
-    const serverEvents = serverItinerary[date] || serverItinerary[cleanDate] || [];
+    const userEvents = normUser[date] || [];
+    const serverEvents = normServer[date] || [];
 
     if (userEvents.length === 0 && serverEvents.length === 0) {
-      if (!result[cleanDate]) result[cleanDate] = [];
+      result[date] = [];
       continue;
     }
 
     const reconciledList: Event[] = [];
     const usedServerIds = new Set<string>();
 
-    // Prioritize user's itinerary choices while enriching with server-assigned IDs/metadata
     for (const uEvt of userEvents) {
       const matchedServerEvt = serverEvents.find(
         s => (s.id === uEvt.id || (s.name === uEvt.name && s.timeStart === uEvt.timeStart)) && !usedServerIds.has(s.id)
@@ -81,14 +119,13 @@ export function reconcileItineraries(
         usedServerIds.add(matchedServerEvt.id);
         reconciledList.push({
           ...uEvt,
-          id: matchedServerEvt.id // Keep server UUID if available
+          id: matchedServerEvt.id
         });
       } else {
         reconciledList.push(uEvt);
       }
     }
 
-    // Also include any server events that weren't in userEvents (e.g. from server)
     for (const sEvt of serverEvents) {
       if (!usedServerIds.has(sEvt.id)) {
         const alreadyIn = reconciledList.some(r => r.id === sEvt.id || (r.name === sEvt.name && r.timeStart === sEvt.timeStart));
@@ -99,7 +136,7 @@ export function reconcileItineraries(
     }
 
     reconciledList.sort((a, b) => (a.timeStart || "00:00").localeCompare(b.timeStart || "00:00"));
-    result[cleanDate] = reconciledList;
+    result[date] = reconciledList;
   }
 
   return result;
@@ -540,7 +577,7 @@ export const tripService = {
                 }
 
                 incomingActivities.push({
-                  id: isUUID(evt.id) ? evt.id : undefined,
+                  id: ensureUUID(evt.id),
                   trip_id: trip.id,
                   trip_day_id: matchedDay?.id || null,
                   title: evt.name,
@@ -586,7 +623,7 @@ export const tripService = {
             }
 
             const incomingExpenses = (trip.expenses || []).map(exp => ({
-              id: isUUID(exp.id) ? exp.id : undefined,
+              id: ensureUUID(exp.id),
               trip_id: trip.id,
               category: exp.category,
               description: exp.description,

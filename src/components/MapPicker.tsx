@@ -525,27 +525,31 @@ function getVenueCoverPhoto(placeNameOrAddress: string): string {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-55 flex items-center justify-center p-3 md:p-5 backdrop-blur-sm" id="google-map-picker-modal">
-      <div className="bg-white rounded-2xl w-full max-w-2xl overflow-hidden flex flex-col h-[600px] md:h-[720px] shadow-2xl border border-gray-100 animate-scale-up">
+    <div className="fixed inset-0 bg-black/70 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm overflow-y-auto" id="google-map-picker-modal">
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-2xl overflow-hidden flex flex-col h-[100dvh] sm:h-[88vh] sm:max-h-[720px] shadow-2xl border border-gray-100 animate-scale-up">
         {/* Modal Header */}
-        <div className="bg-gradient-to-r from-indigo-700 via-indigo-800 to-slate-900 text-white px-5 py-3.5 flex justify-between items-center shrink-0">
+        <div className="bg-gradient-to-r from-indigo-700 via-indigo-800 to-slate-900 text-white px-4 sm:px-5 py-3.5 flex justify-between items-center shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-indigo-500/30 border border-indigo-400/30 flex items-center justify-center shrink-0">
               <Globe className="w-4 h-4 text-indigo-200" />
             </div>
             <div>
-              <h3 className="font-bold text-sm flex items-center gap-1.5">
-                Pesquisa & Selector de Localização
+              <h3 className="font-bold text-xs sm:text-sm flex items-center gap-1.5 flex-wrap">
+                <span>Pesquisa & Selector de Localização</span>
                 <span className="bg-indigo-500/40 text-indigo-200 text-[10px] px-2 py-0.5 rounded-full font-semibold border border-indigo-400/30">
                   {shouldUseGoogle ? "Google Maps Nativo" : "OpenStreetMap Activo"}
                 </span>
               </h3>
-              <p className="text-[11px] text-indigo-200/80">
+              <p className="text-[10px] sm:text-[11px] text-indigo-200/80 leading-tight">
                 Pesquise qualquer ponto de interesse, praia, restaurante ou cole o link do Google Maps.
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="text-white hover:text-indigo-200 p-1 font-bold text-base">
+          <button 
+            onClick={onClose} 
+            className="text-white/80 hover:text-white p-2 text-lg font-bold transition-colors rounded-lg hover:bg-white/10 shrink-0"
+            aria-label="Fechar"
+          >
             ✕
           </button>
         </div>
@@ -707,67 +711,56 @@ function getVenueCoverPhoto(placeNameOrAddress: string): string {
         </div>
 
         {/* Place Card & Confirmation Footer */}
-        <div className="p-4 bg-white border-t border-gray-100 space-y-3 shrink-0">
-          <div className="bg-gray-50 p-3 rounded-xl border border-gray-200/70 space-y-2 text-xs">
+        <div className="p-3 sm:p-4 bg-white border-t border-gray-200 space-y-2.5 shrink-0 z-20 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
+          <div className="bg-gray-50 p-2.5 sm:p-3 rounded-xl border border-gray-200/70 space-y-1.5 text-xs">
             <div className="flex justify-between items-center text-[10px] font-bold text-indigo-900">
               <span className="uppercase tracking-wider flex items-center gap-1">
                 <Navigation className="w-3 h-3 text-indigo-600" />
                 Local Selecionado
               </span>
-              <span className="font-mono text-gray-500">
-                GPS: {lat.toFixed(5)}, {lng.toFixed(5)}
+              <span className="font-mono text-gray-500 text-[10px]">
+                GPS: {lat.toFixed(4)}, {lng.toFixed(4)}
               </span>
             </div>
 
-            <div className="flex items-start gap-3">
+            <div className="flex items-start gap-2.5">
               {placePhoto && (
-                <img src={placePhoto} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0 border border-gray-200" />
+                <img src={placePhoto} alt="" className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover shrink-0 border border-gray-200" />
               )}
               <div className="min-w-0 flex-1 space-y-0.5">
                 {placeName && (
-                  <div className="font-bold text-gray-900 text-xs flex items-center gap-1.5">
-                    <span>{placeName}</span>
+                  <div className="font-bold text-gray-900 text-xs flex items-center gap-1.5 truncate">
+                    <span className="truncate">{placeName}</span>
                     {placeRating && (
-                      <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded flex items-center gap-0.5">
+                      <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded flex items-center gap-0.5 shrink-0">
                         <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-500" />
                         {placeRating}
                       </span>
                     )}
                   </div>
                 )}
-                <p className="text-gray-700 font-medium leading-relaxed truncate">
+                <p className="text-gray-700 font-medium leading-tight truncate text-[11px] sm:text-xs">
                   {address || "Clique no mapa para marcar uma localização exata"}
                 </p>
-                {mapsUrl && (
-                  <a
-                    href={mapsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[10px] font-semibold text-indigo-600 hover:underline flex items-center gap-1 pt-0.5"
-                  >
-                    <ExternalLink className="w-3 h-3" />
-                    Ver no Google Maps (Abrir)
-                  </a>
-                )}
               </div>
             </div>
           </div>
 
-          <div className="flex gap-2.5">
+          <div className="flex gap-2.5 pt-0.5">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl text-xs transition-colors"
+              className="py-2.5 px-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl text-xs transition-colors shrink-0"
             >
               Cancelar
             </button>
             <button
               type="button"
               onClick={handleConfirm}
-              className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-md shadow-indigo-100 transition-colors flex items-center justify-center gap-1.5"
+              className="flex-1 py-2.5 sm:py-3 px-4 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white font-extrabold rounded-xl text-xs sm:text-sm shadow-md shadow-indigo-200 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
             >
-              <Check className="w-4 h-4" />
-              Confirmar e Adicionar ao Itinerário
+              <Check className="w-4 h-4 shrink-0" />
+              <span>Aplicar & Confirmar Localização</span>
             </button>
           </div>
         </div>

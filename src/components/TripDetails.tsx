@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Trip, UserProfile, Event, Expense, Document, SmartRecommendation, Vehicle, Flight } from "../types";
 import { documentService } from "../services/documentService";
 import { invitationService, TripInvitation } from "../services/invitationService";
+import { ensureUUID } from "../services/tripService";
 import { 
   POPULAR_BRANDS,
   getModelsForBrand,
@@ -1143,7 +1144,7 @@ export default function TripDetails({
     } else {
       // Create new event
       const newEvent: Event = {
-        id: "evt-" + Date.now(),
+        id: ensureUUID(),
         ...(eventPayload as Event)
       };
       updatedItinerary[targetDay].push(newEvent);
@@ -1267,7 +1268,7 @@ export default function TripDetails({
     if (!expDescription || !expAmount) return;
 
     const newExp: Expense = {
-      id: "exp-" + Date.now(),
+      id: ensureUUID(),
       category: expCategory,
       description: expDescription,
       amount: Number(expAmount),
@@ -1333,7 +1334,7 @@ export default function TripDetails({
 
     // Automatically append flight cost to planned expenses
     const flightExpense: Expense = {
-      id: "exp-fl-" + Date.now(),
+      id: ensureUUID(),
       category: "Voos",
       description: `Voo ${flightNo} (${flightAirline}) - ${flightPassengers} pax`,
       amount: newFlight.totalPrice,
