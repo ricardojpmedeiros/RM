@@ -88,8 +88,14 @@ export default function App() {
 
     // Monitor auth state changes
     const subscription = authService.onAuthStateChange(async (event, session) => {
+      // Ignore background auth events like token refreshes or tab focus re-auths
+      if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+        return;
+      }
       if (session?.user) {
-        await loadUserAndTrips(session.user);
+        // If activeUser is already set, do NOT set loading=true (pass isSilent = true)
+        const isSilent = Boolean(activeUser);
+        await loadUserAndTrips(session.user, undefined, isSilent);
       } else {
         setActiveUser(null);
         setTrips([]);
@@ -112,8 +118,10 @@ export default function App() {
   }, []);
 
   // Helper to load user profile and trips from Supabase
-  const loadUserAndTrips = async (authUser: any, syncSelectedId?: string | null) => {
-    setLoading(true);
+  const loadUserAndTrips = async (authUser: any, syncSelectedId?: string | null, isSilent = false) => {
+    if (!isSilent) {
+      setLoading(true);
+    }
     try {
       // Fetch or ensure profile exists
       const profile = await authService.getProfile(authUser.id);
@@ -164,11 +172,25 @@ export default function App() {
         if (fresh) {
           // Adjust activeUser role based on their membership role in this specific trip
           const role = await tripService.getMemberRole(fresh.id);
-          setActiveUser({
+          setActiveUser(prev => prev ? {
+            ...prev,
+            role: role === "owner" ? "Planeador" : "Consultor"
+          } : {
             ...userObj,
             role: role === "owner" ? "Planeador" : "Consultor"
           });
-          setSelectedTrip(fresh);
+
+          setSelectedTrip(prev => {
+            if (prev && prev.id === fresh.id) {
+              const mergedItinerary = reconcileItineraries(prev.itinerary || {}, fresh.itinerary || {});
+              return {
+                ...fresh,
+                ...prev,
+                itinerary: mergedItinerary
+              };
+            }
+            return fresh;
+          });
           localStorage.setItem("selected_trip_id", fresh.id);
         } else {
           setSelectedTrip(null);
@@ -324,21 +346,18 @@ export default function App() {
 
   // Route to select trip and dynamically configure activeUser permission role
   const handleSelectTrip = async (trip: Trip) => {
-    setLoading(true);
+    setSelectedTrip(trip);
+    localStorage.setItem("selected_trip_id", trip.id);
     try {
       const role = await tripService.getMemberRole(trip.id);
       if (activeUser) {
-        setActiveUser({
-          ...activeUser,
+        setActiveUser(prev => prev ? {
+          ...prev,
           role: role === "owner" ? "Planeador" : "Consultor"
-        });
+        } : null);
       }
-      setSelectedTrip(trip);
-      localStorage.setItem("selected_trip_id", trip.id);
     } catch (err) {
       console.error("Error setting active user role for selected trip:", err);
-    } finally {
-      setLoading(false);
     }
   };
 

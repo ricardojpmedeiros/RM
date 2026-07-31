@@ -301,7 +301,20 @@ export default function TripDetails({
   onUpdateTrip,
   onOpenReport
 }: TripDetailsProps) {
-  const [activeTab, setActiveTab] = useState<"hoje" | "itinerary" | "map" | "expenses" | "documents" | "participants" | "vehicle" | "settings">("hoje");
+  const [activeTab, setActiveTabRaw] = useState<"hoje" | "itinerary" | "map" | "expenses" | "documents" | "participants" | "vehicle" | "settings">(() => {
+    try {
+      const saved = localStorage.getItem(`trippilot_tab_${trip.id}`);
+      if (saved) return saved as any;
+    } catch (e) {}
+    return "hoje";
+  });
+
+  const setActiveTab = (tab: "hoje" | "itinerary" | "map" | "expenses" | "documents" | "participants" | "vehicle" | "settings") => {
+    setActiveTabRaw(tab);
+    try {
+      localStorage.setItem(`trippilot_tab_${trip.id}`, tab);
+    } catch (e) {}
+  };
   
   // Day navigation for itinerary - comprehensive calculation of all trip dates
   const dates = React.useMemo(() => {
@@ -332,13 +345,33 @@ export default function TripDetails({
     return Array.from(set).sort();
   }, [trip.itinerary, trip.startDate, trip.endDate]);
 
-  const [selectedDate, setSelectedDate] = useState(dates[0] || trip.startDate || "");
+  const [selectedDate, setSelectedDateRaw] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem(`trippilot_date_${trip.id}`);
+      if (saved) return saved;
+    } catch (e) {}
+    return dates[0] || trip.startDate || "";
+  });
+
+  const setSelectedDate = (d: string) => {
+    setSelectedDateRaw(d);
+    try {
+      localStorage.setItem(`trippilot_date_${trip.id}`, d);
+    } catch (e) {}
+  };
 
   useEffect(() => {
     if (selectedDate !== "ALL" && (!selectedDate || !dates.includes(selectedDate)) && dates.length > 0) {
-      setSelectedDate(dates[0]);
+      try {
+        const saved = localStorage.getItem(`trippilot_date_${trip.id}`);
+        if (saved && (saved === "ALL" || dates.includes(saved))) {
+          setSelectedDateRaw(saved);
+          return;
+        }
+      } catch (e) {}
+      setSelectedDateRaw(dates[0]);
     }
-  }, [dates, selectedDate]);
+  }, [dates, selectedDate, trip.id]);
 
   // Real-time clock & timezone engine
   const [now, setNow] = useState(new Date());
