@@ -735,7 +735,7 @@ export default function TripDetails({
         } else {
           // Add newly scanned expense
           const newExp: Expense = {
-            id: "exp-ocr-" + Date.now(),
+            id: ensureUUID(),
             category: extracted.category || "Outros",
             description: extracted.description || "Digitalização OCR",
             amount: Number(extracted.amount) || 0,
@@ -855,12 +855,13 @@ export default function TripDetails({
           );
           if (!hasDep) {
             flightEvents.push({
-              id: `flg-dep-${flg.flightNo}-${idx}`,
+              id: ensureUUID(),
               timeStart: depTime,
               name: `Voo ${flg.flightNo} (${flg.airline}) - Partida: ${flg.departure}`,
               description: `Apresentação no aeroporto de ${flg.departure} para embarque no voo ${flg.flightNo} da ${flg.airline}.`,
               category: "Viagem / Na estrada",
               address: flg.departure,
+              coordinates: null,
               transportType: "Avião",
               googleMapsLink: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(flg.departure)}`,
               wazeLink: `https://waze.com/ul?q=${encodeURIComponent(flg.departure)}`,
@@ -875,12 +876,13 @@ export default function TripDetails({
           );
           if (!hasArr) {
             flightEvents.push({
-              id: `flg-arr-${flg.flightNo}-${idx}`,
+              id: ensureUUID(),
               timeStart: arrTime,
               name: `Chegada Voo ${flg.flightNo}: ${flg.arrival}`,
               description: `Desembarque e recolha de bagagens no Aeroporto de ${flg.arrival}.`,
               category: "Viagem / Na estrada",
               address: flg.arrival,
+              coordinates: null,
               transportType: "Avião",
               googleMapsLink: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(flg.arrival)}`,
               wazeLink: `https://waze.com/ul?q=${encodeURIComponent(flg.arrival)}`,
@@ -999,7 +1001,7 @@ export default function TripDetails({
     }
 
     const newEvent: Event = {
-      id: "evt-search-" + Date.now(),
+      id: ensureUUID(),
       name: place.name,
       timeStart: defaultTime,
       category: category,

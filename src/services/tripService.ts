@@ -61,92 +61,68 @@ export function ensureUUID(id?: string): string {
 
 // Helper function to reconcile local user itinerary state with backend server itinerary state
 export function reconcileItineraries(
-  userItinerary: { [date: string]: Event[] } = {},
-  serverItinerary: { [date: string]: Event[] } = {}
+  primaryItinerary: { [date: string]: Event[] } = {},
+  secondaryItinerary: { [date: string]: Event[] } = {}
 ): { [date: string]: Event[] } {
   const result: { [date: string]: Event[] } = {};
 
-  // Normalize userItinerary keys to YYYY-MM-DD
-  const normUser: { [date: string]: Event[] } = {};
-  for (const k of Object.keys(userItinerary || {})) {
+  // Normalize primaryItinerary keys to YYYY-MM-DD
+  const normPrimary: { [date: string]: Event[] } = {};
+  for (const k of Object.keys(primaryItinerary || {})) {
     const cleanK = k.split("T")[0].trim();
     if (!cleanK) continue;
-    if (!normUser[cleanK]) normUser[cleanK] = [];
-    const evts = userItinerary[k] || [];
+    if (!normPrimary[cleanK]) normPrimary[cleanK] = [];
+    const evts = primaryItinerary[k] || [];
     evts.forEach(e => {
-      if (!e) return;
-      if (e.id) {
-        if (!normUser[cleanK].some(x => x.id === e.id)) {
-          normUser[cleanK].push(e);
-        }
-      } else {
-        normUser[cleanK].push(e);
+      if (e && !normPrimary[cleanK].some(x => x.id === e.id)) {
+        normPrimary[cleanK].push(e);
       }
     });
   }
 
-  // Normalize serverItinerary keys to YYYY-MM-DD
-  const normServer: { [date: string]: Event[] } = {};
-  for (const k of Object.keys(serverItinerary || {})) {
+  // Normalize secondaryItinerary keys to YYYY-MM-DD
+  const normSecondary: { [date: string]: Event[] } = {};
+  for (const k of Object.keys(secondaryItinerary || {})) {
     const cleanK = k.split("T")[0].trim();
     if (!cleanK) continue;
-    if (!normServer[cleanK]) normServer[cleanK] = [];
-    const evts = serverItinerary[k] || [];
+    if (!normSecondary[cleanK]) normSecondary[cleanK] = [];
+    const evts = secondaryItinerary[k] || [];
     evts.forEach(e => {
-      if (!e) return;
-      if (e.id) {
-        if (!normServer[cleanK].some(x => x.id === e.id)) {
-          normServer[cleanK].push(e);
-        }
-      } else {
-        normServer[cleanK].push(e);
+      if (e && !normSecondary[cleanK].some(x => x.id === e.id)) {
+        normSecondary[cleanK].push(e);
       }
     });
   }
 
-  const allDates = Array.from(new Set([
-    ...Object.keys(normUser),
-    ...Object.keys(normServer)
-  ])).filter(Boolean);
+  // Primary itinerary takes absolute precedence for all dates it explicitly includes
+  for (const date of Object.keys(normPrimary)) {
+    const pEvts = normPrimary[date] || [];
+    const sEvts = normSecondary[date] || [];
 
-  for (const date of allDates) {
-    const userEvents = normUser[date] || [];
-    const serverEvents = normServer[date] || [];
-
-    if (userEvents.length === 0 && serverEvents.length === 0) {
-      result[date] = [];
-      continue;
-    }
-
-    const reconciledList: Event[] = [];
-    const usedServerIds = new Set<string>();
-
-    for (const uEvt of userEvents) {
-      const matchedServerEvt = serverEvents.find(
-        s => (s.id === uEvt.id || (s.name === uEvt.name && s.timeStart === uEvt.timeStart)) && !usedServerIds.has(s.id)
-      );
-      if (matchedServerEvt) {
-        usedServerIds.add(matchedServerEvt.id);
-        reconciledList.push({
-          ...uEvt,
-          id: matchedServerEvt.id
-        });
-      } else {
-        reconciledList.push(uEvt);
+    const mergedEvts = pEvts.map(pEvt => {
+      const matched = sEvts.find(s => s.id === pEvt.id || (s.name === pEvt.name && s.timeStart === pEvt.timeStart));
+      if (matched) {
+        return {
+          ...matched,
+          ...pEvt,
+          id: pEvt.id || matched.id,
+          coordinates: pEvt.coordinates || matched.coordinates,
+          googleMapsLink: pEvt.googleMapsLink || matched.googleMapsLink,
+          wazeLink: pEvt.wazeLink || matched.wazeLink,
+        };
       }
-    }
+      return pEvt;
+    });
 
-    for (const sEvt of serverEvents) {
-      if (!usedServerIds.has(sEvt.id)) {
-        const alreadyIn = reconciledList.some(r => r.id === sEvt.id || (r.name === sEvt.name && r.timeStart === sEvt.timeStart));
-        if (!alreadyIn) {
-          reconciledList.push(sEvt);
-        }
-      }
-    }
+    mergedEvts.sort((a, b) => (a.timeStart || "00:00").localeCompare(b.timeStart || "00:00"));
+    result[date] = mergedEvts;
+  }
 
-    reconciledList.sort((a, b) => (a.timeStart || "00:00").localeCompare(b.timeStart || "00:00"));
-    result[date] = reconciledList;
+  // Any date present ONLY in secondary (not present in primary at all) is preserved
+  for (const date of Object.keys(normSecondary)) {
+    if (!(date in result)) {
+      result[date] = (normSecondary[date] || []).slice().sort((a, b) => (a.timeStart || "00:00").localeCompare(b.timeStart || "00:00"));
+    }
   }
 
   return result;
@@ -690,9 +666,6 @@ export const tripService = {
       });
       if (!resp.ok) throw new Error("HTTP error " + resp.status);
       const data: Trip = await resp.json();
-      if (data && data.itinerary) {
-        data.itinerary = reconcileItineraries(trip.itinerary, data.itinerary);
-      }
       return data;
     } catch (err) {
       console.error("Local updateTrip failed:", err);

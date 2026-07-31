@@ -77,6 +77,18 @@ export default function App() {
   const [showReportTrip, setShowReportTrip] = useState<Trip | null>(null);
   const [inviteToken, setInviteToken] = useState<string>("");
 
+  const activeUserRef = React.useRef<UserProfile | null>(null);
+  const selectedTripRef = React.useRef<Trip | null>(null);
+  const isLoadedRef = React.useRef<boolean>(false);
+
+  React.useEffect(() => {
+    activeUserRef.current = activeUser;
+  }, [activeUser]);
+
+  React.useEffect(() => {
+    selectedTripRef.current = selectedTrip;
+  }, [selectedTrip]);
+
   // 1. Initial Auth and State listener
   useEffect(() => {
     // Check for invite token in URL
@@ -93,8 +105,8 @@ export default function App() {
         return;
       }
       if (session?.user) {
-        // If activeUser is already set, do NOT set loading=true (pass isSilent = true)
-        const isSilent = Boolean(activeUser);
+        // If app has already loaded or user is present, run loadUserAndTrips silently to prevent UI unmount/resets
+        const isSilent = isLoadedRef.current || Boolean(activeUserRef.current);
         await loadUserAndTrips(session.user, undefined, isSilent);
       } else {
         setActiveUser(null);
@@ -106,7 +118,7 @@ export default function App() {
     // Check current session
     authService.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        loadUserAndTrips(session.user);
+        loadUserAndTrips(session.user, undefined, isLoadedRef.current);
       } else {
         setLoading(false);
       }
@@ -119,7 +131,7 @@ export default function App() {
 
   // Helper to load user profile and trips from Supabase
   const loadUserAndTrips = async (authUser: any, syncSelectedId?: string | null, isSilent = false) => {
-    if (!isSilent) {
+    if (!isSilent && !isLoadedRef.current) {
       setLoading(true);
     }
     try {
@@ -134,6 +146,7 @@ export default function App() {
       };
       
       setActiveUser(userObj);
+      activeUserRef.current = userObj;
 
       // Handle any active invitation acceptance on login/signup
       const params = new URLSearchParams(window.location.search);
@@ -166,7 +179,8 @@ export default function App() {
 
       // Synchronize currently selected trip if active
       const savedTripId = localStorage.getItem("selected_trip_id");
-      const targetId = syncSelectedId !== undefined ? syncSelectedId : (selectedTrip?.id || savedTripId);
+      const currentSelected = selectedTripRef.current;
+      const targetId = syncSelectedId !== undefined ? syncSelectedId : (currentSelected?.id || savedTripId);
       if (targetId) {
         const fresh = mergedTrips.find((t) => t.id === targetId);
         if (fresh) {
@@ -200,6 +214,7 @@ export default function App() {
     } catch (err) {
       console.error("Error loading user profile or trips:", err);
     } finally {
+      isLoadedRef.current = true;
       setLoading(false);
     }
   };
@@ -207,7 +222,7 @@ export default function App() {
   const fetchTrips = async (syncSelected = true) => {
     const user = await authService.getCurrentUser();
     if (user) {
-      await loadUserAndTrips(user, syncSelected ? selectedTrip?.id : null);
+      await loadUserAndTrips(user, syncSelected ? selectedTripRef.current?.id : null, true);
     }
   };
 
@@ -236,17 +251,12 @@ export default function App() {
     try {
       const freshTrip = await tripService.updateTrip(updated);
       if (freshTrip) {
-        const finalItinerary = reconcileItineraries(updated.itinerary, freshTrip.itinerary || {});
-        const finalTrip: Trip = {
-          ...freshTrip,
-          itinerary: finalItinerary
-        };
         setTrips(prev => {
-          const nextTrips = prev.map(t => t.id === updated.id ? finalTrip : t);
+          const nextTrips = prev.map(t => t.id === updated.id ? freshTrip : t);
           saveTripsToLocalStorage(nextTrips);
           return nextTrips;
         });
-        setSelectedTrip(finalTrip);
+        setSelectedTrip(freshTrip);
       }
     } catch (err) {
       console.error("Failed to update trip on backend:", err);
