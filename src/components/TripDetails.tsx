@@ -335,10 +335,10 @@ export default function TripDetails({
   const [selectedDate, setSelectedDate] = useState(dates[0] || trip.startDate || "");
 
   useEffect(() => {
-    if ((!selectedDate || !dates.includes(selectedDate)) && dates.length > 0) {
+    if (selectedDate !== "ALL" && (!selectedDate || !dates.includes(selectedDate)) && dates.length > 0) {
       setSelectedDate(dates[0]);
     }
-  }, [dates]);
+  }, [dates, selectedDate]);
 
   // Real-time clock & timezone engine
   const [now, setNow] = useState(new Date());
@@ -402,7 +402,10 @@ export default function TripDetails({
     setEvtNotes("");
     setEvtImage("");
     setEvtTransportType("Carro");
-    setEvtDate(targetDay || selectedDate || dates[0] || trip.startDate || "");
+    const validTargetDay = targetDay && targetDay !== "ALL" ? targetDay.split("T")[0].trim() : "";
+    const validSelectedDate = selectedDate && selectedDate !== "ALL" ? selectedDate.split("T")[0].trim() : "";
+    const fallbackDay = (dates[0] || trip.startDate || new Date().toISOString().split("T")[0]).split("T")[0].trim();
+    setEvtDate(validTargetDay || validSelectedDate || fallbackDay);
     setShowEventModal(true);
   };
 
@@ -1206,9 +1209,11 @@ export default function TripDetails({
       image: evtImage || "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80"
     };
 
-    const targetDay = (evtDate && dates.includes(evtDate)) 
-      ? evtDate 
-      : ((selectedDate && dates.includes(selectedDate)) ? selectedDate : (dates[0] || trip.startDate || new Date().toISOString().split("T")[0]));
+    const cleanEvtDate = evtDate && evtDate !== "ALL" ? evtDate.split("T")[0].trim() : "";
+    const cleanSelDate = selectedDate && selectedDate !== "ALL" ? selectedDate.split("T")[0].trim() : "";
+    const fallbackDay = (dates[0] || trip.startDate || new Date().toISOString().split("T")[0]).split("T")[0].trim();
+
+    const targetDay = cleanEvtDate || cleanSelDate || fallbackDay;
 
     let updatedItinerary = { ...trip.itinerary };
     delete updatedItinerary[""]; // Strip any accidental blank string key
@@ -1244,8 +1249,16 @@ export default function TripDetails({
       updatedItinerary[targetDay].sort((a, b) => (a.timeStart || "00:00").localeCompare(b.timeStart || "00:00"));
     }
 
+    // Auto-expand trip start/end date range if targetDay falls outside
+    let newStartDate = trip.startDate;
+    let newEndDate = trip.endDate;
+    if (!newStartDate || targetDay < newStartDate) newStartDate = targetDay;
+    if (!newEndDate || targetDay > newEndDate) newEndDate = targetDay;
+
     onUpdateTrip({
       ...trip,
+      startDate: newStartDate,
+      endDate: newEndDate,
       itinerary: updatedItinerary
     });
 
@@ -1272,7 +1285,11 @@ export default function TripDetails({
 
   const handleEditEventClick = (evt: Event) => {
     const foundDate = Object.keys(trip.itinerary).find(d => (trip.itinerary[d] || []).some(e => e.id === evt.id));
-    setEvtDate(foundDate || selectedDate || dates[0]);
+    const cleanFoundDate = foundDate ? foundDate.split("T")[0].trim() : "";
+    const cleanSelDate = selectedDate && selectedDate !== "ALL" ? selectedDate.split("T")[0].trim() : "";
+    const fallbackDay = (dates[0] || trip.startDate || "").split("T")[0].trim();
+
+    setEvtDate(cleanFoundDate || cleanSelDate || fallbackDay);
     setEditingEventId(evt.id);
     setEvtName(evt.name);
     setEvtTimeStart(evt.timeStart);
@@ -1919,6 +1936,29 @@ export default function TripDetails({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6" id="view-itinerary">
           {/* Day picker side block */}
           <div className="lg:col-span-3 space-y-3">
+            {/* Mobile Dropdown Selector (screens < lg) */}
+            <div className="block lg:hidden bg-indigo-50/80 border border-indigo-200/80 p-3 rounded-2xl shadow-xs">
+              <label className="block text-[10px] font-bold text-indigo-900 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                <span>Visualização no Telemóvel:</span>
+                <span className="text-indigo-600 font-extrabold">{dates.reduce((acc, d) => acc + getCombinedEventsForDate(trip, d).length, 0)} eventos total</span>
+              </label>
+              <select
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full bg-white border border-indigo-200 font-bold text-indigo-950 rounded-xl px-3 py-2 text-xs shadow-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              >
+                <option value="ALL">🌟 Ver Todos os Dias (Itinerário Completo)</option>
+                {dates.map((d, index) => {
+                  const count = getCombinedEventsForDate(trip, d).length;
+                  return (
+                    <option key={d} value={d}>
+                      Dia {index + 1} ({new Date(d + "T00:00:00").toLocaleDateString("pt-PT", { month: "short", day: "numeric" })}) - {count} {count === 1 ? "evento" : "eventos"}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
             <div className="flex items-center justify-between pl-1 pr-1">
               <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Dias de Viagem</h4>
               {isPlanner && (
@@ -1933,7 +1973,28 @@ export default function TripDetails({
                 </button>
               )}
             </div>
+
             <div className="flex lg:flex-col gap-2 overflow-x-auto pb-2 lg:pb-0 scrollbar-none">
+              {/* All Days button */}
+              <button
+                onClick={() => setSelectedDate("ALL")}
+                className={`text-left px-4 py-3 rounded-xl border transition-all shrink-0 lg:shrink flex flex-row lg:flex-col justify-between items-start gap-1 w-fit lg:w-full ${
+                  selectedDate === "ALL"
+                    ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100 font-bold"
+                    : "bg-white border-gray-100 hover:border-indigo-100 text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-xs font-bold opacity-90">🌟 Ver Todos</span>
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                    selectedDate === "ALL" ? "bg-white/20 text-white" : "bg-indigo-50 text-indigo-600"
+                  }`}>
+                    {dates.reduce((acc, d) => acc + getCombinedEventsForDate(trip, d).length, 0)} evts
+                  </span>
+                </div>
+                <span className="font-bold text-xs lg:text-sm">Itinerário Completo</span>
+              </button>
+
               {dates.map((d, index) => {
                 const count = getCombinedEventsForDate(trip, d).length;
                 return (
@@ -1990,317 +2051,358 @@ export default function TripDetails({
           {/* Timeline Timeline */}
           <div className="lg:col-span-9 space-y-4">
             <div className="flex justify-between items-center border-b border-gray-100 pb-3">
-              <h3 className="font-bold text-gray-900 text-lg">Itinerário Detalhado</h3>
-              <span className="text-xs text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full font-medium">
-                {activeItineraryList.length} {activeItineraryList.length === 1 ? "Evento" : "Eventos"}
+              <div>
+                <h3 className="font-bold text-gray-900 text-lg">
+                  {selectedDate === "ALL" ? "Itinerário Completo (Todos os Dias)" : "Itinerário Detalhado"}
+                </h3>
+                <p className="text-gray-400 text-xs mt-0.5">
+                  {selectedDate === "ALL" 
+                    ? "A apresentar todos os eventos da viagem organizados por dia."
+                    : `Dia ${dates.indexOf(selectedDate) + 1} • ${new Date((selectedDate || dates[0]) + "T00:00:00").toLocaleDateString("pt-PT", { weekday: "long", day: "numeric", month: "long" })}`
+                  }
+                </p>
+              </div>
+              <span className="text-xs text-indigo-700 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full font-bold shadow-xs">
+                {selectedDate === "ALL"
+                  ? `${dates.reduce((acc, d) => acc + getCombinedEventsForDate(trip, d).length, 0)} Eventos Total`
+                  : `${activeItineraryList.length} ${activeItineraryList.length === 1 ? "Evento" : "Eventos"}`
+                }
               </span>
             </div>
 
-            {activeItineraryList.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
-                <p className="text-gray-500 text-sm">Nenhum evento agendado para este dia.</p>
-                {isPlanner && (
-                  <button
-                    onClick={() => openAddEventModal()}
-                    className="mt-3 text-xs font-bold text-indigo-600 bg-indigo-50 px-4 py-2 rounded-xl hover:bg-indigo-100 transition-colors"
-                  >
-                    Adicionar primeiro evento
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="relative border-l border-indigo-100 pl-4 md:pl-6 space-y-6 py-2 ml-4">
-                {/* 🏠 Dynamic Starting Location Leg (Home / Accommodation) */}
-                {(() => {
-                  const isFirstDay = selectedDate === dates[0];
-                  const hasHomeAddress = !!trip.homeAddress;
-                  const startAddr = (isFirstDay && hasHomeAddress) ? trip.homeAddress : trip.accommodationAddress;
-                  const startLabel = (isFirstDay && hasHomeAddress) ? "Saída de Casa (Início da Viagem)" : "Saída do Alojamento (Início do Dia)";
-                  const isHome = isFirstDay && hasHomeAddress;
-                  
-                  if (!startAddr) return null;
-                  
-                  // Calculate leg to first event
-                  const firstEvt = activeItineraryList[0];
-                  const leg = calculateLeg(startAddr, firstEvt);
-                  
-                  return (
-                    <div className="relative mb-6 -ml-[25px] md:-ml-[33px]" id="itinerary-day-start-leg">
-                      {/* Start Marker Pin */}
-                      <span className="absolute left-[8px] md:left-[16px] top-1 w-5 h-5 rounded-full bg-emerald-600 border-2 border-white shadow-sm flex items-center justify-center text-white z-10">
-                        {isHome ? <Home className="w-3 h-3" /> : <Building className="w-3 h-3" />}
-                      </span>
-                      
-                      <div className="pl-8 md:pl-10">
-                        <div className="bg-emerald-50 border border-emerald-100/50 rounded-xl px-3 py-2 text-xs text-emerald-800 font-semibold inline-flex flex-col gap-0.5 max-w-full">
-                          <span className="text-[10px] uppercase font-bold text-emerald-600 tracking-wider flex items-center gap-1">
-                            {isHome ? <Home className="w-3.5 h-3.5" /> : <Hotel className="w-3.5 h-3.5" />}
-                            {startLabel}
+            {/* Display Dates rendering loop (Selected single date OR ALL dates) */}
+            {(() => {
+              const displayDates = selectedDate === "ALL" ? dates : [selectedDate];
+              const totalEventsCount = displayDates.reduce((acc, d) => acc + getCombinedEventsForDate(trip, d).length, 0);
+
+              if (totalEventsCount === 0) {
+                return (
+                  <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
+                    <p className="text-gray-500 text-sm">Nenhum evento agendado para esta seleção.</p>
+                    {isPlanner && (
+                      <button
+                        onClick={() => openAddEventModal()}
+                        className="mt-3 text-xs font-bold text-indigo-600 bg-indigo-50 px-4 py-2 rounded-xl hover:bg-indigo-100 transition-colors"
+                      >
+                        Adicionar primeiro evento
+                      </button>
+                    )}
+                  </div>
+                );
+              }
+
+              return displayDates.map((currentDayStr) => {
+                const dayEvents = calculateNavigationLegs(getCombinedEventsForDate(trip, currentDayStr));
+                const dayIndex = dates.indexOf(currentDayStr);
+
+                return (
+                  <div key={currentDayStr} className="space-y-4 mb-8">
+                    {/* Day Banner when in ALL view mode */}
+                    {selectedDate === "ALL" && (
+                      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl px-5 py-3 shadow-sm flex items-center justify-between mt-6 mb-4">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-indigo-400" />
+                          <span className="font-bold text-sm md:text-base">
+                            Dia {dayIndex + 1} &bull; {new Date(currentDayStr + "T00:00:00").toLocaleDateString("pt-PT", { weekday: "short", day: "numeric", month: "short" })}
                           </span>
-                          <span className="text-gray-700 truncate max-w-xs sm:max-w-md">{cleanAddressDisplay(startAddr)}</span>
                         </div>
-                        
-                        {/* Departure leg connection banner */}
-                        <div className="mt-4 mb-2 ml-0 pl-4 py-1.5 border-l-2 border-dashed border-indigo-200 relative">
-                          <span className="absolute -left-[6px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-indigo-300"></span>
-                          <div className="bg-indigo-50 border border-indigo-100/50 rounded-md px-1.5 py-0.5 text-[9px] text-indigo-600 font-medium flex flex-wrap items-center gap-1.5 shadow-xs w-fit">
-                            <Navigation className="w-2.5 h-2.5 shrink-0 text-indigo-500" />
-                            <span>Deslocação até {firstEvt.name}: <strong>{leg.distance}</strong> (estimado {leg.time})</span>
-                            {trip.vehicle && (
-                              <span className="text-emerald-600 font-bold ml-1 pl-1 border-l border-indigo-100 flex items-center gap-0.5">
-                                {trip.vehicle.type === "electric" ? <BatteryCharging className="w-2.5 h-2.5 text-emerald-500" /> : <Fuel className="w-2.5 h-2.5 text-emerald-500" />}
-                                Est: {getBatteryOrFuelEstimate(leg.distance, trip.vehicle)}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {activeItineraryList.map((evt, idx) => (
-                  <div key={evt.id} className="relative group">
-                    {/* Circle marker pin */}
-                    <span className="absolute -left-[21px] md:-left-[29px] top-1.5 w-4 h-4 rounded-full bg-indigo-600 border-2 border-white shadow-sm ring-4 ring-indigo-50 flex items-center justify-center text-[8px] text-white"></span>
-
-                    {/* Auto Calculated departure distance leg box & Transport selector */}
-                    {idx > 0 && (
-                      <div className="mb-4 mt-2 bg-indigo-50/40 border border-indigo-100/50 rounded-2xl p-4 text-xs text-indigo-950 shadow-xs flex flex-col gap-3 relative z-10">
-                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-100/40 pb-2">
-                          <div className="flex flex-wrap items-center gap-2 font-semibold text-indigo-900">
-                            <Navigation className="w-4 h-4 text-indigo-500 shrink-0" />
-                            <span>Deslocação: <strong className="text-indigo-700">{evt.distanceFromPrev}</strong></span>
-                            <span className="text-gray-300">|</span>
-                            <span>Tempo: <strong className="text-indigo-700">{evt.timeFromPrev}</strong></span>
-                            {evt.transportCost !== undefined && evt.transportCost > 0 && (
-                              <>
-                                <span className="text-gray-300">|</span>
-                                <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">
-                                  Custo Est.: {evt.transportCost.toFixed(2)}€
-                                </span>
-                              </>
-                            )}
-                            
-                            {/* Vehicle consumption, only if "Carro" is active */}
-                            {trip.vehicle && evt.transportType === "Carro" && (
-                              <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100 flex items-center gap-1">
-                                {trip.vehicle.type === "electric" ? (
-                                  <BatteryCharging className="w-3.5 h-3.5 text-emerald-500" />
-                                ) : (
-                                  <Fuel className="w-3.5 h-3.5 text-emerald-500" />
-                                )}
-                                Est: {getBatteryOrFuelEstimate(evt.distanceFromPrev, trip.vehicle)}
-                              </span>
-                            )}
-                          </div>
-
-                          {evt.transportType && (
-                            <span className="bg-indigo-600 text-white font-bold px-2.5 py-0.5 rounded-full text-[10px] uppercase tracking-wider flex items-center gap-1">
-                              {evt.transportType === "Avião" && <Plane className="w-3 h-3" />}
-                              {evt.transportType === "Carro" && <Car className="w-3 h-3" />}
-                              {evt.transportType === "Comboio" && <Train className="w-3 h-3" />}
-                              {evt.transportType === "Metro" && <Train className="w-3 h-3" />}
-                              {evt.transportType === "Barco" && <Ship className="w-3 h-3" />}
-                              {evt.transportType === "A pé" && <Footprints className="w-3 h-3" />}
-                              {evt.transportType === "Bicicleta" && <Bike className="w-3 h-3" />}
-                              {evt.transportType === "Trotinete Elétrica (20Km máx)" && <Sparkles className="w-3 h-3" />}
-                              {evt.transportType}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Interactive Transport Options */}
-                        <div className="flex flex-col gap-2">
-                          <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Selecionar Meio de Transporte:</span>
-                          <div className="flex flex-wrap gap-1.5">
-                            {[
-                              { label: "A pé", value: "A pé", icon: Footprints },
-                              { label: "Bicicleta", value: "Bicicleta", icon: Bike },
-                              { label: "Trotinete", value: "Trotinete Elétrica (20Km máx)", icon: Sparkles },
-                              { label: "Carro", value: "Carro", icon: Car },
-                              { label: "Metro", value: "Metro", icon: Train },
-                              { label: "Comboio", value: "Comboio", icon: Train },
-                              { label: "Avião", value: "Avião", icon: Plane },
-                              { label: "Barco", value: "Barco", icon: Ship }
-                            ].map((mode) => {
-                              const isActive = evt.transportType === mode.value;
-                              const IconComp = mode.icon;
-                              return (
-                                <button
-                                  key={mode.value}
-                                  onClick={() => handleUpdateEventTransport(evt.id, mode.value)}
-                                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border transition-all text-[11px] font-semibold ${
-                                    isActive
-                                      ? "bg-indigo-600 border-indigo-600 text-white shadow-xs ring-2 ring-indigo-200"
-                                      : "bg-white border-gray-200 text-gray-700 hover:border-indigo-200 hover:bg-indigo-50/50"
-                                  }`}
-                                  title={mode.value}
-                                >
-                                  <IconComp className="w-3.5 h-3.5 shrink-0" />
-                                  <span>{mode.label}</span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        {/* Trotinete maximum warning */}
-                        {evt.transportType === "Trotinete Elétrica (20Km máx)" && evt.transportError && (
-                          <div className="mt-1 flex items-center gap-1.5 text-amber-600 font-semibold bg-amber-50 px-2.5 py-1.5 rounded-xl border border-amber-100">
-                            <AlertCircle className="w-3.5 h-3.5 shrink-0 text-amber-500" />
-                            <span>{evt.transportError}</span>
-                          </div>
-                        )}
+                        <button
+                          onClick={() => setSelectedDate(currentDayStr)}
+                          className="text-[11px] bg-white/10 hover:bg-white/20 text-indigo-200 border border-white/20 px-3 py-1 rounded-xl font-bold transition-all cursor-pointer"
+                        >
+                          Focar este Dia
+                        </button>
                       </div>
                     )}
 
-                    {/* Card container */}
-                    <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-5 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row gap-4">
-                      {evt.image && (
-                        <div className="w-full md:w-36 h-24 rounded-xl overflow-hidden shrink-0 bg-gray-50 border border-gray-100">
-                          <img src={evt.image} alt={evt.name} className="w-full h-full object-cover" />
-                        </div>
-                      )}
-                      
-                      <div className="flex-1 min-w-0 flex flex-col justify-between">
-                        <div>
-                          <div className="flex flex-wrap justify-between items-start gap-x-2 mb-1">
-                            <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {evt.timeStart}
-                              {evt.timeEnd && ` - ${evt.timeEnd}`}
-                              {evt.duration && ` (${evt.duration})`}
-                            </span>
-                            <span className="text-[10px] text-gray-400 font-semibold bg-gray-50 px-2 py-0.5 rounded border border-gray-100 uppercase">
-                              {evt.category}
-                            </span>
-                          </div>
+                    {dayEvents.length === 0 ? (
+                      <div className="bg-gray-50/50 rounded-2xl border border-dashed border-gray-200 p-6 text-center text-xs text-gray-400 italic">
+                        Sem eventos agendados para o Dia {dayIndex + 1}.
+                      </div>
+                    ) : (
+                      <div className="relative border-l border-indigo-100 pl-4 md:pl-6 space-y-6 py-2 ml-4">
+                        {/* 🏠 Dynamic Starting Location Leg (Home / Accommodation) */}
+                        {(() => {
+                          const isFirstDay = currentDayStr === dates[0];
+                          const hasHomeAddress = !!trip.homeAddress;
+                          const startAddr = (isFirstDay && hasHomeAddress) ? trip.homeAddress : trip.accommodationAddress;
+                          const startLabel = (isFirstDay && hasHomeAddress) ? "Saída de Casa (Início da Viagem)" : "Saída do Alojamento (Início do Dia)";
+                          const isHome = isFirstDay && hasHomeAddress;
+                          
+                          if (!startAddr) return null;
+                          
+                          const firstEvt = dayEvents[0];
+                          const leg = calculateLeg(startAddr, firstEvt);
+                          
+                          return (
+                            <div className="relative mb-6 -ml-[25px] md:-ml-[33px]" id={`itinerary-day-start-leg-${currentDayStr}`}>
+                              <span className="absolute left-[8px] md:left-[16px] top-1 w-5 h-5 rounded-full bg-emerald-600 border-2 border-white shadow-sm flex items-center justify-center text-white z-10">
+                                {isHome ? <Home className="w-3 h-3" /> : <Building className="w-3 h-3" />}
+                              </span>
+                              
+                              <div className="pl-8 md:pl-10">
+                                <div className="bg-emerald-50 border border-emerald-100/50 rounded-xl px-3 py-2 text-xs text-emerald-800 font-semibold inline-flex flex-col gap-0.5 max-w-full">
+                                  <span className="text-[10px] uppercase font-bold text-emerald-600 tracking-wider flex items-center gap-1">
+                                    {isHome ? <Home className="w-3.5 h-3.5" /> : <Hotel className="w-3.5 h-3.5" />}
+                                    {startLabel}
+                                  </span>
+                                  <span className="text-gray-700 truncate max-w-xs sm:max-w-md">{cleanAddressDisplay(startAddr)}</span>
+                                </div>
+                                
+                                <div className="mt-4 mb-2 ml-0 pl-4 py-1.5 border-l-2 border-dashed border-indigo-200 relative">
+                                  <span className="absolute -left-[6px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-indigo-300"></span>
+                                  <div className="bg-indigo-50 border border-indigo-100/50 rounded-md px-1.5 py-0.5 text-[9px] text-indigo-600 font-medium flex flex-wrap items-center gap-1.5 shadow-xs w-fit">
+                                    <Navigation className="w-2.5 h-2.5 shrink-0 text-indigo-500" />
+                                    <span>Deslocação até {firstEvt.name}: <strong>{leg.distance}</strong> (estimado {leg.time})</span>
+                                    {trip.vehicle && (
+                                      <span className="text-emerald-600 font-bold ml-1 pl-1 border-l border-indigo-100 flex items-center gap-0.5">
+                                        {trip.vehicle.type === "electric" ? <BatteryCharging className="w-2.5 h-2.5 text-emerald-500" /> : <Fuel className="w-2.5 h-2.5 text-emerald-500" />}
+                                        Est: {getBatteryOrFuelEstimate(leg.distance, trip.vehicle)}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
 
-                          <h4 className="font-bold text-gray-900 text-sm md:text-base mt-1">{evt.name}</h4>
-                          <p className="text-gray-500 text-xs leading-relaxed mt-1 line-clamp-2">{evt.description}</p>
-                        </div>
+                        {dayEvents.map((evt, idx) => (
+                          <div key={evt.id} className="relative group">
+                            <span className="absolute -left-[21px] md:-left-[29px] top-1.5 w-4 h-4 rounded-full bg-indigo-600 border-2 border-white shadow-sm ring-4 ring-indigo-50 flex items-center justify-center text-[8px] text-white"></span>
 
-                        {/* Event Address and Nav links */}
-                        <div className="flex flex-wrap items-center justify-between gap-2 mt-3 pt-2 border-t border-gray-50 text-xs">
-                          <span className="text-gray-400 truncate max-w-[200px] flex items-center gap-1">
-                            <MapPin className="w-3.5 h-3.5 shrink-0" />
-                            {evt.address || "Sem endereço físico."}
-                          </span>
+                            {idx > 0 && (
+                              <div className="mb-4 mt-2 bg-indigo-50/40 border border-indigo-100/50 rounded-2xl p-4 text-xs text-indigo-950 shadow-xs flex flex-col gap-3 relative z-10">
+                                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-100/40 pb-2">
+                                  <div className="flex flex-wrap items-center gap-2 font-semibold text-indigo-900">
+                                    <Navigation className="w-4 h-4 text-indigo-500 shrink-0" />
+                                    <span>Deslocação: <strong className="text-indigo-700">{evt.distanceFromPrev}</strong></span>
+                                    <span className="text-gray-300">|</span>
+                                    <span>Tempo: <strong className="text-indigo-700">{evt.timeFromPrev}</strong></span>
+                                    {evt.transportCost !== undefined && evt.transportCost > 0 && (
+                                      <>
+                                        <span className="text-gray-300">|</span>
+                                        <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">
+                                          Custo Est.: {evt.transportCost.toFixed(2)}€
+                                        </span>
+                                      </>
+                                    )}
+                                    
+                                    {trip.vehicle && evt.transportType === "Carro" && (
+                                      <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100 flex items-center gap-1">
+                                        {trip.vehicle.type === "electric" ? (
+                                          <BatteryCharging className="w-3.5 h-3.5 text-emerald-500" />
+                                        ) : (
+                                          <Fuel className="w-3.5 h-3.5 text-emerald-500" />
+                                        )}
+                                        Est: {getBatteryOrFuelEstimate(evt.distanceFromPrev, trip.vehicle)}
+                                      </span>
+                                    )}
+                                  </div>
 
-                          <div className="flex gap-2">
-                            <a 
-                              href={evt.googleMapsLink} 
-                              target="_blank" 
-                              rel="noopener noreferrer" 
-                              className="text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-0.5 text-[11px]"
-                            >
-                              Google Maps
-                              <ExternalLink className="w-3 h-3" />
-                            </a>
-                            <a 
-                              href={evt.wazeLink} 
-                              target="_blank" 
-                              rel="noopener noreferrer" 
-                              className="text-amber-600 hover:text-amber-800 font-semibold flex items-center gap-0.5 text-[11px]"
-                            >
-                              Waze
-                              <ExternalLink className="w-3 h-3" />
-                            </a>
+                                  {evt.transportType && (
+                                    <span className="bg-indigo-600 text-white font-bold px-2.5 py-0.5 rounded-full text-[10px] uppercase tracking-wider flex items-center gap-1">
+                                      {evt.transportType === "Avião" && <Plane className="w-3 h-3" />}
+                                      {evt.transportType === "Carro" && <Car className="w-3 h-3" />}
+                                      {evt.transportType === "Comboio" && <Train className="w-3 h-3" />}
+                                      {evt.transportType === "Metro" && <Train className="w-3 h-3" />}
+                                      {evt.transportType === "Barco" && <Ship className="w-3 h-3" />}
+                                      {evt.transportType === "A pé" && <Footprints className="w-3 h-3" />}
+                                      {evt.transportType === "Bicicleta" && <Bike className="w-3 h-3" />}
+                                      {evt.transportType === "Trotinete Elétrica (20Km máx)" && <Sparkles className="w-3 h-3" />}
+                                      {evt.transportType}
+                                    </span>
+                                  )}
+                                </div>
 
-                            {/* Planner operations */}
-                            {isPlanner && (
-                              <div className="flex items-center gap-1.5 ml-3 border-l border-gray-200 pl-3">
-                                <select
-                                  value=""
-                                  onChange={(e) => {
-                                    if (e.target.value) {
-                                      handleMoveEventToDay(evt.id, selectedDate, e.target.value);
-                                    }
-                                  }}
-                                  className="text-[11px] font-semibold text-gray-600 bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 rounded-lg px-2 py-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors"
-                                  title="Mover evento para outro dia"
-                                >
-                                  <option value="">Mover p/ dia...</option>
-                                  {dates.filter(d => d !== selectedDate).map((d) => (
-                                    <option key={d} value={d}>
-                                      Dia {dates.indexOf(d) + 1} ({new Date(d + "T00:00:00").toLocaleDateString("pt-PT", { day: "numeric", month: "short" })})
-                                    </option>
-                                  ))}
-                                </select>
-                                <button 
-                                  onClick={() => handleEditEventClick(evt)}
-                                  className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 p-2 rounded-lg transition-colors flex items-center justify-center min-w-[32px] min-h-[32px]"
-                                  title="Editar"
-                                >
-                                  <Pencil className="w-3.5 h-3.5" />
-                                </button>
-                                <button 
-                                  onClick={() => requestDeleteEvent({ id: evt.id, name: evt.name })}
-                                  className="text-gray-400 hover:text-red-600 hover:bg-rose-50 p-2 rounded-lg transition-colors flex items-center justify-center min-w-[32px] min-h-[32px]"
-                                  title="Eliminar evento"
-                                >
-                                  <Trash className="w-3.5 h-3.5" />
-                                </button>
+                                <div className="flex flex-col gap-2">
+                                  <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Selecionar Meio de Transporte:</span>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {[
+                                      { label: "A pé", value: "A pé", icon: Footprints },
+                                      { label: "Bicicleta", value: "Bicicleta", icon: Bike },
+                                      { label: "Trotinete", value: "Trotinete Elétrica (20Km máx)", icon: Sparkles },
+                                      { label: "Carro", value: "Carro", icon: Car },
+                                      { label: "Metro", value: "Metro", icon: Train },
+                                      { label: "Comboio", value: "Comboio", icon: Train },
+                                      { label: "Avião", value: "Avião", icon: Plane },
+                                      { label: "Barco", value: "Barco", icon: Ship }
+                                    ].map((mode) => {
+                                      const isActive = evt.transportType === mode.value;
+                                      const IconComp = mode.icon;
+                                      return (
+                                        <button
+                                          key={mode.value}
+                                          onClick={() => handleUpdateEventTransport(evt.id, mode.value)}
+                                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border transition-all text-[11px] font-semibold ${
+                                            isActive
+                                              ? "bg-indigo-600 border-indigo-600 text-white shadow-xs ring-2 ring-indigo-200"
+                                              : "bg-white border-gray-200 text-gray-700 hover:border-indigo-200 hover:bg-indigo-50/50"
+                                          }`}
+                                          title={mode.value}
+                                        >
+                                          <IconComp className="w-3.5 h-3.5 shrink-0" />
+                                          <span>{mode.label}</span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+
+                                {evt.transportType === "Trotinete Elétrica (20Km máx)" && evt.transportError && (
+                                  <div className="mt-1 flex items-center gap-1.5 text-amber-600 font-semibold bg-amber-50 px-2.5 py-1.5 rounded-xl border border-amber-100">
+                                    <AlertCircle className="w-3.5 h-3.5 shrink-0 text-amber-500" />
+                                    <span>{evt.transportError}</span>
+                                  </div>
+                                )}
                               </div>
                             )}
+
+                            {/* Card container */}
+                            <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-5 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row gap-4">
+                              {evt.image && (
+                                <div className="w-full md:w-36 h-24 rounded-xl overflow-hidden shrink-0 bg-gray-50 border border-gray-100">
+                                  <img src={evt.image} alt={evt.name} className="w-full h-full object-cover" />
+                                </div>
+                              )}
+                              
+                              <div className="flex-1 min-w-0 flex flex-col justify-between">
+                                <div>
+                                  <div className="flex flex-wrap justify-between items-start gap-x-2 mb-1">
+                                    <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg flex items-center gap-1">
+                                      <Clock className="w-3 h-3" />
+                                      {evt.timeStart}
+                                      {evt.timeEnd && ` - ${evt.timeEnd}`}
+                                      {evt.duration && ` (${evt.duration})`}
+                                    </span>
+                                    <span className="text-[10px] text-gray-400 font-semibold bg-gray-50 px-2 py-0.5 rounded border border-gray-100 uppercase">
+                                      {evt.category}
+                                    </span>
+                                  </div>
+
+                                  <h4 className="font-bold text-gray-900 text-sm md:text-base mt-1">{evt.name}</h4>
+                                  <p className="text-gray-500 text-xs leading-relaxed mt-1">{evt.description}</p>
+                                </div>
+
+                                <div className="flex flex-wrap items-center justify-between gap-2 mt-3 pt-2 border-t border-gray-50 text-xs">
+                                  <span className="text-gray-400 truncate max-w-[200px] flex items-center gap-1">
+                                    <MapPin className="w-3.5 h-3.5 shrink-0" />
+                                    {evt.address || "Sem endereço físico."}
+                                  </span>
+
+                                  <div className="flex gap-2">
+                                    <a 
+                                      href={evt.googleMapsLink} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer" 
+                                      className="text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-0.5 text-[11px]"
+                                    >
+                                      Google Maps
+                                      <ExternalLink className="w-3 h-3" />
+                                    </a>
+                                    <a 
+                                      href={evt.wazeLink} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer" 
+                                      className="text-amber-600 hover:text-amber-800 font-semibold flex items-center gap-0.5 text-[11px]"
+                                    >
+                                      Waze
+                                      <ExternalLink className="w-3 h-3" />
+                                    </a>
+
+                                    {isPlanner && (
+                                      <div className="flex items-center gap-1.5 ml-3 border-l border-gray-200 pl-3">
+                                        <select
+                                          value=""
+                                          onChange={(e) => {
+                                            if (e.target.value) {
+                                              handleMoveEventToDay(evt.id, currentDayStr, e.target.value);
+                                            }
+                                          }}
+                                          className="text-[11px] font-semibold text-gray-600 bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600 border border-gray-200 rounded-lg px-2 py-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-colors"
+                                          title="Mover evento para outro dia"
+                                        >
+                                          <option value="">Mover p/ dia...</option>
+                                          {dates.filter(d => d !== currentDayStr).map((d) => (
+                                            <option key={d} value={d}>
+                                              Dia {dates.indexOf(d) + 1} ({new Date(d + "T00:00:00").toLocaleDateString("pt-PT", { day: "numeric", month: "short" })})
+                                            </option>
+                                          ))}
+                                        </select>
+                                        <button 
+                                          onClick={() => handleEditEventClick(evt)}
+                                          className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 p-2 rounded-lg transition-colors flex items-center justify-center min-w-[32px] min-h-[32px]"
+                                          title="Editar"
+                                        >
+                                          <Pencil className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button 
+                                          onClick={() => requestDeleteEvent({ id: evt.id, name: evt.name })}
+                                          className="text-gray-400 hover:text-red-600 hover:bg-rose-50 p-2 rounded-lg transition-colors flex items-center justify-center min-w-[32px] min-h-[32px]"
+                                          title="Eliminar evento"
+                                        >
+                                          <Trash className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
                           </div>
-                        </div>
+                        ))}
+
+                        {/* 🏠 Dynamic Returning Location Leg (Home / Accommodation) */}
+                        {(() => {
+                          const isLastDay = currentDayStr === dates[dates.length - 1];
+                          const hasHomeAddress = !!trip.homeAddress;
+                          const endAddr = (isLastDay && hasHomeAddress) ? trip.homeAddress : trip.accommodationAddress;
+                          const endLabel = (isLastDay && hasHomeAddress) ? "Regresso a Casa (Fim da Viagem)" : "Regresso ao Alojamento (Fim do Dia)";
+                          const isHome = isLastDay && hasHomeAddress;
+                          
+                          if (!endAddr) return null;
+                          
+                          const lastEvt = dayEvents[dayEvents.length - 1];
+                          const leg = calculateLeg(lastEvt.address || lastEvt.name, endAddr);
+                          
+                          return (
+                            <div className="relative mt-8 -ml-[25px] md:-ml-[33px]" id={`itinerary-day-end-leg-${currentDayStr}`}>
+                              <div className="mb-4 ml-2 pl-4 py-1.5 border-l-2 border-dashed border-indigo-200 relative">
+                                <span className="absolute -left-[6px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-indigo-300"></span>
+                                <div className="bg-indigo-50 border border-indigo-100/50 rounded-md px-1.5 py-0.5 text-[9px] text-indigo-600 font-medium flex flex-wrap items-center gap-1.5 shadow-xs w-fit">
+                                  <Navigation className="w-2.5 h-2.5 shrink-0 text-indigo-500" />
+                                  <span>Regresso desde {lastEvt.name}: <strong>{leg.distance}</strong> (estimado {leg.time})</span>
+                                  {trip.vehicle && (
+                                    <span className="text-emerald-600 font-bold ml-1 pl-1 border-l border-indigo-100 flex items-center gap-0.5">
+                                      {trip.vehicle.type === "electric" ? <BatteryCharging className="w-2.5 h-2.5 text-emerald-500" /> : <Fuel className="w-2.5 h-2.5 text-emerald-500" />}
+                                      Est: {getBatteryOrFuelEstimate(leg.distance, trip.vehicle)}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <span className="absolute left-[8px] md:left-[16px] top-[40px] w-5 h-5 rounded-full bg-rose-600 border-2 border-white shadow-sm flex items-center justify-center text-white z-10">
+                                {isHome ? <Home className="w-3 h-3" /> : <Building className="w-3 h-3" />}
+                              </span>
+                              
+                              <div className="pl-8 md:pl-10 pt-8">
+                                <div className="bg-rose-50 border border-rose-100/50 rounded-xl px-3 py-2 text-xs text-rose-800 font-semibold inline-flex flex-col gap-0.5 max-w-full">
+                                  <span className="text-[10px] uppercase font-bold text-rose-600 tracking-wider flex items-center gap-1">
+                                    {isHome ? <Home className="w-3.5 h-3.5" /> : <Hotel className="w-3.5 h-3.5" />}
+                                    {endLabel}
+                                  </span>
+                                  <span className="text-gray-700 truncate max-w-xs sm:max-w-md">{cleanAddressDisplay(endAddr)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
-                    </div>
+                    )}
                   </div>
-                ))}
-
-                {/* 🏠 Dynamic Returning Location Leg (Home / Accommodation) */}
-                {(() => {
-                  const isLastDay = selectedDate === dates[dates.length - 1];
-                  const hasHomeAddress = !!trip.homeAddress;
-                  const endAddr = (isLastDay && hasHomeAddress) ? trip.homeAddress : trip.accommodationAddress;
-                  const endLabel = (isLastDay && hasHomeAddress) ? "Regresso a Casa (Fim da Viagem)" : "Regresso ao Alojamento (Fim do Dia)";
-                  const isHome = isLastDay && hasHomeAddress;
-                  
-                  if (!endAddr) return null;
-                  
-                  // Calculate leg from last event
-                  const lastEvt = activeItineraryList[activeItineraryList.length - 1];
-                  const leg = calculateLeg(lastEvt.address || lastEvt.name, endAddr);
-                  
-                  return (
-                    <div className="relative mt-8 -ml-[25px] md:-ml-[33px]" id="itinerary-day-end-leg">
-                      {/* Return leg connection banner */}
-                      <div className="mb-4 ml-2 pl-4 py-1.5 border-l-2 border-dashed border-indigo-200 relative">
-                        <span className="absolute -left-[6px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-indigo-300"></span>
-                        <div className="bg-indigo-50 border border-indigo-100/50 rounded-md px-1.5 py-0.5 text-[9px] text-indigo-600 font-medium flex flex-wrap items-center gap-1.5 shadow-xs w-fit">
-                          <Navigation className="w-2.5 h-2.5 shrink-0 text-indigo-500" />
-                          <span>Regresso desde {lastEvt.name}: <strong>{leg.distance}</strong> (estimado {leg.time})</span>
-                          {trip.vehicle && (
-                            <span className="text-emerald-600 font-bold ml-1 pl-1 border-l border-indigo-100 flex items-center gap-0.5">
-                              {trip.vehicle.type === "electric" ? <BatteryCharging className="w-2.5 h-2.5 text-emerald-500" /> : <Fuel className="w-2.5 h-2.5 text-emerald-500" />}
-                              Est: {getBatteryOrFuelEstimate(leg.distance, trip.vehicle)}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* End Marker Pin */}
-                      <span className="absolute left-[8px] md:left-[16px] top-[40px] w-5 h-5 rounded-full bg-rose-600 border-2 border-white shadow-sm flex items-center justify-center text-white z-10">
-                        {isHome ? <Home className="w-3 h-3" /> : <Building className="w-3 h-3" />}
-                      </span>
-                      
-                      <div className="pl-8 md:pl-10 pt-8">
-                        <div className="bg-rose-50 border border-rose-100/50 rounded-xl px-3 py-2 text-xs text-rose-800 font-semibold inline-flex flex-col gap-0.5 max-w-full">
-                          <span className="text-[10px] uppercase font-bold text-rose-600 tracking-wider flex items-center gap-1">
-                            {isHome ? <Home className="w-3.5 h-3.5" /> : <Hotel className="w-3.5 h-3.5" />}
-                            {endLabel}
-                          </span>
-                          <span className="text-gray-700 truncate max-w-xs sm:max-w-md">{cleanAddressDisplay(endAddr)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-            )}
+                );
+              });
+            })()}
           </div>
         </div>
       )}
@@ -3606,17 +3708,28 @@ export default function TripDetails({
             <form onSubmit={handleEventSubmit} className="p-5 space-y-4 text-xs max-h-[80vh] overflow-y-auto">
               <div>
                 <label className="block font-bold text-gray-700 mb-1">Dia da Viagem *</label>
-                <select
-                  value={evtDate || selectedDate || dates[0]}
-                  onChange={(e) => setEvtDate(e.target.value)}
-                  className="w-full px-2.5 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-bold text-gray-800 bg-white"
-                >
-                  {dates.map((d, idx) => (
-                    <option key={d} value={d}>
-                      Dia {idx + 1} - {new Date(d + "T00:00:00").toLocaleDateString("pt-PT", { day: "numeric", month: "long", year: "numeric" })}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex gap-2">
+                  <select
+                    value={evtDate && dates.includes(evtDate) ? evtDate : (evtDate || (selectedDate !== "ALL" ? selectedDate : dates[0]))}
+                    onChange={(e) => setEvtDate(e.target.value)}
+                    className="flex-1 px-2.5 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-bold text-gray-800 bg-white"
+                  >
+                    {dates.map((d, idx) => (
+                      <option key={d} value={d}>
+                        Dia {idx + 1} - {new Date(d + "T00:00:00").toLocaleDateString("pt-PT", { day: "numeric", month: "long", year: "numeric" })}
+                      </option>
+                    ))}
+                    {!dates.includes(evtDate) && evtDate && evtDate !== "ALL" && (
+                      <option value={evtDate}>{evtDate}</option>
+                    )}
+                  </select>
+                  <input
+                    type="date"
+                    value={evtDate && evtDate !== "ALL" ? evtDate : ""}
+                    onChange={(e) => setEvtDate(e.target.value)}
+                    className="px-2.5 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs font-semibold text-gray-800 bg-white"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

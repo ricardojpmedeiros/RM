@@ -14,6 +14,61 @@ import { tripService, reconcileItineraries } from "./services/tripService";
 import { invitationService } from "./services/invitationService";
 import { Compass, RefreshCw } from "lucide-react";
 
+// Helper for localStorage persistence across server/session restarts
+function saveTripsToLocalStorage(tripsToSave: Trip[]) {
+  try {
+    localStorage.setItem("trippilot_user_trips", JSON.stringify(tripsToSave));
+  } catch (e) {
+    console.warn("Could not save trips to localStorage:", e);
+  }
+}
+
+function loadTripsFromLocalStorage(): Trip[] {
+  try {
+    const raw = localStorage.getItem("trippilot_user_trips");
+    if (raw) return JSON.parse(raw);
+  } catch (e) {
+    console.warn("Could not load trips from localStorage:", e);
+  }
+  return [];
+}
+
+function mergeServerAndLocalTrips(serverTrips: Trip[], localTrips: Trip[]): Trip[] {
+  if (!localTrips || localTrips.length === 0) return serverTrips;
+  if (!serverTrips || serverTrips.length === 0) return localTrips;
+
+  const resultMap = new Map<string, Trip>();
+
+  for (const sTrip of serverTrips) {
+    resultMap.set(sTrip.id, sTrip);
+  }
+
+  for (const lTrip of localTrips) {
+    const existingServer = resultMap.get(lTrip.id);
+    if (!existingServer) {
+      resultMap.set(lTrip.id, lTrip);
+    } else {
+      const mergedItinerary = reconcileItineraries(lTrip.itinerary || {}, existingServer.itinerary || {});
+      
+      const mergedTrip: Trip = {
+        ...existingServer,
+        ...lTrip,
+        startDate: lTrip.startDate || existingServer.startDate,
+        endDate: lTrip.endDate || existingServer.endDate,
+        name: lTrip.name || existingServer.name,
+        destination: lTrip.destination || existingServer.destination,
+        description: lTrip.description || existingServer.description,
+        itinerary: mergedItinerary,
+        expenses: lTrip.expenses && lTrip.expenses.length >= (existingServer.expenses || []).length ? lTrip.expenses : existingServer.expenses,
+        documents: lTrip.documents && lTrip.documents.length >= (existingServer.documents || []).length ? lTrip.documents : existingServer.documents,
+      };
+      resultMap.set(lTrip.id, mergedTrip);
+    }
+  }
+
+  return Array.from(resultMap.values());
+}
+
 export default function App() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [activeUser, setActiveUser] = useState<UserProfile | null>(null);
@@ -88,14 +143,24 @@ export default function App() {
         }
       }
 
-      // Fetch all trips
+      // Fetch all trips from server and merge with local persistence fallback
       const fetched = await tripService.fetchAllTrips();
-      setTrips(fetched);
+      const localTrips = loadTripsFromLocalStorage();
+      const mergedTrips = mergeServerAndLocalTrips(fetched, localTrips);
+      
+      setTrips(mergedTrips);
+      saveTripsToLocalStorage(mergedTrips);
+
+      // Background sync merged trips to server if missing or updated
+      mergedTrips.forEach(t => {
+        tripService.updateTrip(t).catch(e => console.warn("Background trip sync warning:", e));
+      });
 
       // Synchronize currently selected trip if active
-      const targetId = syncSelectedId !== undefined ? syncSelectedId : selectedTrip?.id;
+      const savedTripId = localStorage.getItem("selected_trip_id");
+      const targetId = syncSelectedId !== undefined ? syncSelectedId : (selectedTrip?.id || savedTripId);
       if (targetId) {
-        const fresh = fetched.find((t) => t.id === targetId);
+        const fresh = mergedTrips.find((t) => t.id === targetId);
         if (fresh) {
           // Adjust activeUser role based on their membership role in this specific trip
           const role = await tripService.getMemberRole(fresh.id);
@@ -104,8 +169,10 @@ export default function App() {
             role: role === "owner" ? "Planeador" : "Consultor"
           });
           setSelectedTrip(fresh);
+          localStorage.setItem("selected_trip_id", fresh.id);
         } else {
           setSelectedTrip(null);
+          localStorage.removeItem("selected_trip_id");
         }
       }
     } catch (err) {
@@ -136,8 +203,12 @@ export default function App() {
 
   // Sync updates back to server/Supabase
   const handleUpdateTrip = async (updated: Trip) => {
-    // Optimistic UI state update so changes are instant and persistent
-    setTrips(prev => prev.map(t => t.id === updated.id ? updated : t));
+    // Optimistic UI state update so changes are instant and persistent locally
+    setTrips(prev => {
+      const nextTrips = prev.map(t => t.id === updated.id ? updated : t);
+      saveTripsToLocalStorage(nextTrips);
+      return nextTrips;
+    });
     setSelectedTrip(updated);
 
     try {
@@ -148,7 +219,11 @@ export default function App() {
           ...freshTrip,
           itinerary: finalItinerary
         };
-        setTrips(prev => prev.map(t => t.id === updated.id ? finalTrip : t));
+        setTrips(prev => {
+          const nextTrips = prev.map(t => t.id === updated.id ? finalTrip : t);
+          saveTripsToLocalStorage(nextTrips);
+          return nextTrips;
+        });
         setSelectedTrip(finalTrip);
       }
     } catch (err) {
@@ -163,7 +238,11 @@ export default function App() {
     try {
       const newTrip = await tripService.createTrip(tripData);
       if (newTrip) {
-        setTrips(prev => [newTrip, ...prev]);
+        setTrips(prev => {
+          const nextTrips = [newTrip, ...prev];
+          saveTripsToLocalStorage(nextTrips);
+          return nextTrips;
+        });
         alert("Viagem criada com sucesso na nuvem!");
       }
     } catch (err: any) {
@@ -180,7 +259,11 @@ export default function App() {
     try {
       const duplicated = await tripService.duplicateTrip(id);
       if (duplicated) {
-        setTrips(prev => [duplicated, ...prev]);
+        setTrips(prev => {
+          const nextTrips = [duplicated, ...prev];
+          saveTripsToLocalStorage(nextTrips);
+          return nextTrips;
+        });
         alert("Viagem duplicada com sucesso!");
       }
     } catch (err: any) {
@@ -201,9 +284,12 @@ export default function App() {
     try {
       const updated = { ...trip, status: newStatus as any };
       const fresh = await tripService.updateTrip(updated);
-      if (fresh) {
-        setTrips(prev => prev.map(t => t.id === id ? fresh : t));
-      }
+      const finalTrip = fresh || updated;
+      setTrips(prev => {
+        const nextTrips = prev.map(t => t.id === id ? finalTrip : t);
+        saveTripsToLocalStorage(nextTrips);
+        return nextTrips;
+      });
     } catch (err) {
       console.error("Error updating archive status:", err);
       alert("Não foi possível alterar o estado da viagem.");
@@ -220,8 +306,13 @@ export default function App() {
     setLoading(true);
     try {
       await tripService.deleteTrip(id);
-      setTrips(prev => prev.filter(t => t.id !== id));
+      setTrips(prev => {
+        const nextTrips = prev.filter(t => t.id !== id);
+        saveTripsToLocalStorage(nextTrips);
+        return nextTrips;
+      });
       setSelectedTrip(null);
+      localStorage.removeItem("selected_trip_id");
       alert("Viagem eliminada com sucesso.");
     } catch (err: any) {
       console.error("Error deleting trip:", err);
@@ -243,6 +334,7 @@ export default function App() {
         });
       }
       setSelectedTrip(trip);
+      localStorage.setItem("selected_trip_id", trip.id);
     } catch (err) {
       console.error("Error setting active user role for selected trip:", err);
     } finally {
@@ -274,6 +366,7 @@ export default function App() {
             activeUser={activeUser}
             onBack={() => {
               setSelectedTrip(null);
+              localStorage.removeItem("selected_trip_id");
               fetchTrips(false);
             }}
             onUpdateTrip={handleUpdateTrip}
